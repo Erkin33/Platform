@@ -1,103 +1,178 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { getUser } from "@/lib/user";
+import {
+  getTests,
+  getAttempts,
+  addAttempt,
+  seedTests,
+  getCompletedTestsCount,
+  getUserProgressPercent,
+  getAttendancePercent,
+  ATTEMPTS_CHANGED,
+  TESTS_CHANGED,
+  PROGRESS_CHANGED,
+} from "@/lib/tests";
+
+/**
+ * ЭТО КОРНЕВАЯ СТРАНИЦА / (app/page.tsx)
+ * Тут нет Sidebar/Topbar — только голые данные. Нужно, чтобы исключить
+ * любой другой layout/страницу, которые могли перетерать контент.
+ */
+export default function RootLiveDashboard() {
+  const [uid, setUid] = useState("current");
+
+  // живые метрики
+  const [completed, setCompleted] = useState(0);
+  const [avgPercent, setAvgPercent] = useState(0);
+  const [attShare, setAttShare] = useState(0);
+
+  // отладка: длины, сырые значения
+  const [testsLen, setTestsLen] = useState(0);
+  const [attemptsLen, setAttemptsLen] = useState(0);
+  const [rawTests, setRawTests] = useState("[]");
+  const [rawAttempts, setRawAttempts] = useState("[]");
+
+  function recalc() {
+    const u = getUser();
+    const id = u.name || "current";
+    setUid(id);
+
+    // читаем и показываем сырые значения из localStorage
+    const rawT = localStorage.getItem("uniplatform_tests_v1") || "[]";
+    const rawA = localStorage.getItem("uniplatform_attempts_v1") || "[]";
+    setRawTests(rawT);
+    setRawAttempts(rawA);
+
+    const tests = getTests();
+    const atts  = getAttempts();
+    setTestsLen(tests.length);
+    setAttemptsLen(atts.length);
+
+    const c  = getCompletedTestsCount(id);
+    const av = getUserProgressPercent(id); // средний %
+    const sh = getAttendancePercent(id);   // доля завершённых от активных
+    setCompleted(c);
+    setAvgPercent(av);
+    setAttShare(sh);
+
+    console.log("[/ RootLiveDashboard] recompute", { id, tests: tests.length, attempts: atts.length, completed: c, avg: av, share: sh });
+  }
+
+  useEffect(() => {
+    // На всякий случай — если пусто, засеиваем демо-тесты
+    seedTests();
+    recalc();
+
+    const onChange = () => recalc();
+    window.addEventListener(ATTEMPTS_CHANGED, onChange);
+    window.addEventListener(TESTS_CHANGED, onChange);
+    window.addEventListener(PROGRESS_CHANGED, onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener(ATTEMPTS_CHANGED, onChange);
+      window.removeEventListener(TESTS_CHANGED, onChange);
+      window.removeEventListener(PROGRESS_CHANGED, onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
+
+  function onReset() {
+    localStorage.removeItem("uniplatform_tests_v1");
+    localStorage.removeItem("uniplatform_attempts_v1");
+    seedTests(); // вернём 3 теста и пустые попытки
+    recalc();
+  }
+
+  // Добавить одну тестовую попытку для текущего пользователя по первому тесту
+  function onMockAttempt() {
+    const tests = getTests();
+    if (tests.length === 0) { alert("Tests not found"); return; }
+    const t = tests[0];
+    const u = getUser();
+    const id = u.name || "current";
+    // сделаем половину правильных «условно»
+    const total = t.questions.length || 2;
+    const correct = Math.max(0, Math.floor(total / 2));
+    const scorePercent = Math.round((correct / total) * 100);
+
+    addAttempt({ testId: t.id, userId: id, correct, total, scorePercent });
+    recalc();
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="mx-auto max-w-[900px] p-6">
+      <h1 className="text-2xl font-bold text-emerald-700">ROOT LIVE DASHBOARD (/)</h1>
+      <p className="mt-1 text-[13px] text-neutral-600">
+        Если вы видите этот заголовок, значит рендерится именно <code>app/page.tsx</code>, а не какой-то другой роут.
+      </p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      {/* Живые карточки */}
+      <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Card label="Tugallangan testlar (шт)" value={`${completed}`} />
+        <Card label="Davomat (o‘rtacha % по завершённым)" value={`${avgPercent}%`} />
+        <Card label="Davomat (yakunlangan ulushi)" value={`${attShare}%`} />
+        <Card label="User ID" value={uid} />
+      </div>
+
+      {/* Кнопки проверки */}
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          onClick={recalc}
+          className="rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-50"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Recalc
+        </button>
+        <button
+          onClick={onMockAttempt}
+          className="rounded-xl border px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50"
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Add mock attempt
+        </button>
+        <button
+          onClick={onReset}
+          className="rounded-xl border px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
         >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Reset demo data
+        </button>
+      </div>
+
+      {/* Отладка стораджа */}
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <Dump title="localStorage[uniplatform_tests_v1]" value={rawTests} count={testsLen} />
+        <Dump title="localStorage[uniplatform_attempts_v1]" value={rawAttempts} count={attemptsLen} />
+      </div>
+
+      <div className="mt-6 text-[12px] text-neutral-500">
+        Подсказка: если всё работает тут, но не работает на вашей «основной» главной — значит рендерится другой роут
+        (например, <code>app/(dashboard)/page.tsx</code> внутри собственного layout). Тогда перенесите эту логику в
+        нужный <code>page.tsx</code> или удалите старую страницу, чтобы она не перекрывала контент.
+      </div>
+    </div>
+  );
+}
+
+function Card({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white">
+      <div className="px-6 py-5">
+        <div className="text-[12px] tracking-wide text-neutral-500">{label}</div>
+        <div className="mt-1 text-[20px] font-semibold text-neutral-900">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function Dump({ title, value, count }: { title: string; value: string; count: number }) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white">
+      <div className="px-6 py-4">
+        <div className="text-[12px] font-medium text-neutral-700">{title} (count: {count})</div>
+        <pre className="mt-2 max-h-60 overflow-auto rounded bg-neutral-50 p-2 text-[12px] leading-4">
+{value}
+        </pre>
+      </div>
     </div>
   );
 }

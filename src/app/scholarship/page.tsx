@@ -1,0 +1,1 @@
+export default function ScholarshipPage() { return <div>Stipendiya (soon)</div>; }

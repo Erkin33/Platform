@@ -1,0 +1,1 @@
+export default function AttendancePage() { return <div>Davomat (soon)</div>; }
