@@ -1,3 +1,4 @@
+// src/app/events/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +11,6 @@ import {
   unregisterFromEvent,
   spotsLeft,
   isRegistered,
-  eventsInRange,
   type EventItem,
   type EventKind,
   type EventStatus,
@@ -100,10 +100,15 @@ export default function EventsPage() {
   const [view, setView] = useState<CalView>("month");
   const [cursor, setCursor] = useState<Date>(new Date());
 
-  // события для текущего окна календаря
+  // события для текущего окна календаря (фильтруем ЛОКАЛЬНЫЙ список — варнинга больше нет)
   const calEvents = useMemo(() => {
-    const range = rangeFor(cursor, view);
-    return eventsInRange(range.start, range.end);
+    const { start, end } = rangeFor(cursor, view);
+    const t0 = start.getTime();
+    const t1 = end.getTime();
+    return events.filter((ev) => {
+      const s = new Date(ev.start).getTime();
+      return s >= t0 && s <= t1;
+    });
   }, [cursor, view, events]);
 
   /* ---- CRUD ---- */

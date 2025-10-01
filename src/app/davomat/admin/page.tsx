@@ -1,3 +1,4 @@
+// src/app/davomat/admin/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -50,7 +51,7 @@ export default function AttendanceAdminPage() {
     };
   }, []);
 
-  // Состав ведомости: 90 на лекции, 30 на семинар
+  // Состав ведомости
   const roster = useMemo(() => {
     if (!mounted) return [];
     return type === "lecture" ? getStudents() : getStudents(stream);
@@ -68,7 +69,7 @@ export default function AttendanceAdminPage() {
     setCurrent(s);
   }
 
-  // Первый SSR-рендер — тот же пустой контейнер
+  // Первый SSR-рендер — пустой контейнер
   if (!mounted) {
     return <div className="mx-auto max-w-5xl" />;
   }
@@ -186,7 +187,7 @@ function AttendanceSheet({
   // При смене сессии извне — синхронизируем
   useEffect(() => {
     setData(session);
-  }, [session.id]);
+  }, [session]); // ESLint: зависимость — сам объект session
 
   // Подписка на внешние изменения (другая вкладка / другое место в приложении)
   useEffect(() => {
@@ -200,7 +201,7 @@ function AttendanceSheet({
       window.removeEventListener(ATT_SESSIONS_CHANGED, reload);
       window.removeEventListener("storage", reload);
     };
-  }, [session.id]);
+  }, [session]); // ESLint: зависимость — сам объект session
 
   const presentIds = useMemo(
     () => Object.entries(data.marks).filter(([, v]) => v).map(([id]) => id),
@@ -293,4 +294,3 @@ function AttendanceSheet({
     </div>
   );
 }
-

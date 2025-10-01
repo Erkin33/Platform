@@ -1,3 +1,4 @@
+// src/app/clubs/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -47,11 +48,11 @@ export default function ClubsPage() {
   const filtered = useMemo(() => {
     const s = query.trim().toLowerCase();
     const items = clubs
-      .filter(c => c.status === "active")
+      .filter((c) => c.status === "active")
       .sort((a, b) => b.createdAt - a.createdAt);
     if (!s) return items;
     return items.filter(
-      c =>
+      (c) =>
         c.title.toLowerCase().includes(s) ||
         (c.description ?? "").toLowerCase().includes(s) ||
         c.category.toLowerCase().includes(s)
@@ -83,7 +84,7 @@ export default function ClubsPage() {
 
       {/* list */}
       <div className="space-y-4">
-        {filtered.map(c => (
+        {filtered.map((c) => (
           <ClubRow key={c.id} c={c} uid={uid} />
         ))}
         {filtered.length === 0 && (
@@ -97,8 +98,10 @@ export default function ClubsPage() {
       <section className="rounded-2xl border bg-indigo-50 p-4">
         <h3 className="text-[16px] font-semibold">Mening klublarim</h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {mine.length === 0 && <div className="text-sm text-neutral-600">Hali a'zo emassiz.</div>}
-          {mine.map(c => (
+          {mine.length === 0 && (
+            <div className="text-sm text-neutral-600">Hali aʼzo emassiz.</div>
+          )}
+          {mine.map((c) => (
             <div key={c.id} className="rounded-xl border bg-white p-3">
               <div className="font-medium">{c.title}</div>
               <div className="text-xs text-neutral-500">{c.category}</div>
@@ -132,12 +135,14 @@ function ClubRow({ c, uid }: { c: ClubItem; uid: string }) {
             </span>
           </div>
           {c.description && (
-            <div className="mt-1 text-[13px] text-neutral-600 line-clamp-2">{c.description}</div>
+            <div className="mt-1 text-[13px] text-neutral-600 line-clamp-2">
+              {c.description}
+            </div>
           )}
           <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-neutral-600 sm:grid-cols-2">
             <div className="inline-flex items-center gap-2">
               <Users className="h-4 w-4 text-neutral-500" />
-              {c.members.length} a'zo
+              {c.members.length} aʼzo
             </div>
             {c.nextMeeting && (
               <div className="inline-flex items-center gap-2">
@@ -160,7 +165,7 @@ function ClubRow({ c, uid }: { c: ClubItem; uid: string }) {
               onClick={() => joinClub(c.id, uid)}
               className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
-              Qo'shilish
+              Qo‘shilish
             </button>
           ) : (
             <button

@@ -5,38 +5,38 @@ import { ChevronRight, FileText } from "lucide-react";
 import { getUser } from "@/lib/user";
 import {
   getCompletedTestsCount,
-  getUserProgressPercent,   // средний % по завершённым
-  getAttendancePercent,     // доля завершённых от всех активных
+  getUserProgressPercent,
+  getAttendancePercent,
   ATTEMPTS_CHANGED,
   TESTS_CHANGED,
   PROGRESS_CHANGED,
 } from "@/lib/tests";
 import { getEvents, EVENTS_CHANGED, type EventItem } from "@/lib/events";
 
-/** Как считать Davomat:
- *  true  -> средний % по завершённым тестам
- *  false -> доля завершённых от всех активных тестов
+/** Davomat hisoblash rejimi:
+ *  true  -> o‘qilgan testlar bo‘yicha o‘rtacha %
+ *  false -> barcha faol testlardan yakunlangan ulushi
  */
 const USE_AVERAGE_AS_DAVOMAT = true;
 
-/* демо-активности для блока "So'ngi faoliyatlar" */
+/* demo-aktivliklar bloki “So‘ngi faoliyatlar” uchun */
 type ActivityItem = { id: string; title: string; note: string; timeAgo: string };
 const seedActivities: ActivityItem[] = [
   { id: "a1", title: "Konstitutsiya huquqi testi", note: "tugatildi", timeAgo: "2 soat oldin" },
   { id: "a2", title: "Yuridik klub", note: "uchrashuvida qatnashding", timeAgo: "1 kun oldin" },
-  { id: "a3", title: "Huquq asoslari", note: "kitobini o'qishni boshladingiz", timeAgo: "3 kun oldin" },
+  { id: "a3", title: "Huquq asoslari", note: "kitobini o‘qishni boshladingiz", timeAgo: "3 kun oldin" },
 ];
 
 export default function DashboardPage() {
-  // живые цифры
+  // jonli raqamlar
   const [completed, setCompleted] = useState(0);
   const [davomat, setDavomat] = useState(0);
 
-  // активности и ближайшие события
+  // faoliyatlar va yaqin tadbirlar
   const [activities, setActivities] = useState<ActivityItem[] | null>(null);
   const [events, setEvents] = useState<EventItem[] | null>(null);
 
-  /* ===== статистика тестов ===== */
+  /* ===== test statistika ===== */
   useEffect(() => {
     const u = getUser();
     const uid = u.name || "current";
@@ -63,7 +63,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  /* ===== активности + события ===== */
+  /* ===== faoliyat + tadbirlar ===== */
   useEffect(() => {
     setActivities(seedActivities);
 
@@ -88,7 +88,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Статкарточки как в макете — ТОЛЬКО живые значения */}
+      {/* Stat-kartalar: faqat jonli qiymatlar */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <StatCard color="emerald" value={`${completed}`} title="Tugallangan testlar" />
         <StatCard
@@ -98,9 +98,9 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* So'ngi faoliyatlar */}
+      {/* So‘ngi faoliyatlar */}
       <section className="mt-8">
-        <h3 className="text-[20px] font-semibold">So'ngi faoliyatlar</h3>
+        <h3 className="text-[20px] font-semibold">So‘ngi faoliyatlar</h3>
         <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-0.5">
           {activities === null ? (
             <>

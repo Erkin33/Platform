@@ -1,6 +1,7 @@
+// src/app/scholarships/[slug]/page.tsx
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { CalendarDays, Users } from "lucide-react";
 import {
   getBySlug,
@@ -13,25 +14,23 @@ import {
   type Scholarship,
   formatAmount,
 } from "@/lib/scholarships";
-import { getUser, type Role } from "@/lib/user";
+import { getUser } from "@/lib/user";
 
 export default function ScholarshipDetails(props: { params: Promise<{ slug: string }> }) {
   const { slug } = use(props.params);
 
-  const [role, setRole] = useState<Role | null>(null);
   const [uid, setUid] = useState("current");
   const [item, setItem] = useState<Scholarship | null>(null);
   const [applied, setApplied] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     const u = getUser();
-    setRole(u.role);
     const id = u.name || "current";
     setUid(id);
     const s = getBySlug(slug) || null;
     setItem(s);
     setApplied(s ? isApplied(s, id) : false);
-  };
+  }, [slug]);
 
   useEffect(() => {
     load();
@@ -44,7 +43,7 @@ export default function ScholarshipDetails(props: { params: Promise<{ slug: stri
       window.removeEventListener(APPLICATIONS_CHANGED, on);
       window.removeEventListener("storage", on);
     };
-  }, [slug]);
+  }, [load]);
 
   if (!item) return <div className="text-neutral-600">Topilmadi.</div>;
 

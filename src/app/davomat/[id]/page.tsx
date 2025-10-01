@@ -1,6 +1,7 @@
+// src/app/davomat/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Minus } from "lucide-react";
 import { getUser, type Role } from "@/lib/user";
@@ -28,7 +29,6 @@ const lsGet = <T,>(key: string, fb: T): T => {
 const lsSet = <T,>(key: string, val: T) => {
   if (!isBrowser()) return;
   window.localStorage.setItem(key, JSON.stringify(val));
-  // Отправим событие после завершения текущего рендера
   try {
     setTimeout(() => {
       window.dispatchEvent(
@@ -49,25 +49,25 @@ export default function DavomatCoursePage(
   const [course, setCourse] = useState<Course | null>(null);
   const [stat, setStat] = useState<Attendance | null>(null);
 
+  const load = useCallback(() => {
+    const courses = lsGet<Course[]>(K.COURSES, []);
+    const stats = lsGet<Attendance[]>(K.STATS, []);
+    setCourse(courses.find((c) => c.id === id) || null);
+    setStat(stats.find((s) => s.courseId === id) || { courseId: id, total: 0, attended: 0 });
+  }, [id]);
+
   useEffect(() => {
     setMounted(true);
     const u = getUser();
     setRole(u.role);
     load();
+    const keys = new Set<string>([K.COURSES, K.STATS]);
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || [K.COURSES, K.STATS].includes(e.key as any)) load();
+      if (!e.key || keys.has(e.key)) load();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  function load() {
-    const courses = lsGet<Course[]>(K.COURSES, []);
-    const stats = lsGet<Attendance[]>(K.STATS, []);
-    setCourse(courses.find((c) => c.id === id) || null);
-    setStat(stats.find((s) => s.courseId === id) || { courseId: id, total: 0, attended: 0 });
-  }
+  }, [id, load]);
 
   const pct = useMemo(() => {
     if (!stat || stat.total === 0) return 0;
@@ -81,7 +81,7 @@ export default function DavomatCoursePage(
       const i = list.findIndex((s) => s.courseId === id);
       if (i >= 0) list[i] = next;
       else list.push(next);
-      lsSet(K.STATS, list); // <-- асинхронный storage-ивент
+      lsSet(K.STATS, list); // асинхронный storage-ивент
       return next;
     });
   }
@@ -201,7 +201,7 @@ export default function DavomatCoursePage(
 
       {isAdmin && (
         <p className="mt-3 text-[12px] text-neutral-500">
-          Admin: `{stat.total}` — jami darslar, `{stat.attended}` — qatnashgan. Кнопки выше сразу сохраняют данные.
+          Admin: `{stat.total}` — jami darslar, `{stat.attended}` — qatnashgan.
         </p>
       )}
     </div>

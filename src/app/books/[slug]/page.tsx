@@ -1,6 +1,7 @@
+// src/app/books/[slug]/page.tsx
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import {
   getBookBySlugOrId,
   type BookItem,
@@ -19,16 +20,15 @@ import { Star } from "lucide-react";
 export default function BookReaderPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = use(props.params);
 
-  // Все хуки объявляем до любых условных return
   const textRef = useRef<HTMLDivElement>(null);
 
   const [book, setBook] = useState<BookItem | null>(null);
   const [uid, setUid] = useState("current");
-  const [progress, setProgress] = useState(0);   // 0..100
-  const [myRating, setMyRating] = useState(0);   // 1..5
+  const [progress, setProgress] = useState(0); // 0..100
+  const [myRating, setMyRating] = useState(0); // 1..5
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
-  function loadAll() {
+  const loadAll = useCallback(() => {
     const u = getUser();
     const id = u.name || "current";
     setUid(id);
@@ -43,7 +43,7 @@ export default function BookReaderPage(props: { params: Promise<{ slug: string }
       setProgress(0);
       setMyRating(0);
     }
-  }
+  }, [slug]);
 
   useEffect(() => {
     loadAll();
@@ -58,9 +58,9 @@ export default function BookReaderPage(props: { params: Promise<{ slug: string }
       window.removeEventListener(BOOK_RATING_CHANGED, on);
       window.removeEventListener("storage", on);
     };
-  }, [slug]);
+  }, [loadAll]);
 
-  // PDF: грузим blob и создаём objectURL; для резюме считаем страницу из progress
+  // PDF: blob yuklab, objectURL yaratamiz; resume uchun sahifani progressdan hisoblaymiz
   useEffect(() => {
     if (!book || book.format !== "pdf") {
       setPdfUrl(null);
@@ -84,15 +84,14 @@ export default function BookReaderPage(props: { params: Promise<{ slug: string }
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
-  }, [book?.id, book?.format, book?.pages, progress]);
+  }, [book, progress]); // <-- добавили 'book' целиком
 
-  // TEXT: автотрекинг по скроллу + автопролист на сохранённую позицию
+  // TEXT: autotracking scroll + saved position
   useEffect(() => {
     if (!book || book.format !== "text") return;
     const el = textRef.current;
     if (!el) return;
 
-    // восстановить прокрутку по сохранённому проценту
     const restore = () => {
       const max = el.scrollHeight - el.clientHeight;
       if (max > 0) el.scrollTop = Math.round((progress / 100) * max);
@@ -103,9 +102,7 @@ export default function BookReaderPage(props: { params: Promise<{ slug: string }
       const max = el.scrollHeight - el.clientHeight;
       const p = max > 0 ? Math.min(100, Math.round((el.scrollTop / max) * 100)) : 0;
       if (Math.abs(p - progress) >= 2) {
-        // здесь book гарантированно не null (мы в эффекте с проверкой выше),
-        // поэтому используем non-null assertion
-        setUserBookProgress(book!.id, uid, p);
+        setUserBookProgress(book.id, uid, p);
         setProgress(p);
       }
     };
@@ -115,15 +112,12 @@ export default function BookReaderPage(props: { params: Promise<{ slug: string }
       clearTimeout(t);
       el.removeEventListener("scroll", onScroll);
     };
-  }, [book?.id, book?.format, uid, progress]);
+  }, [book, uid, progress]); // <-- добавили 'book' целиком
 
-  // Если книга не найдена — показываем заглушку
   if (!book) {
     return <div className="text-neutral-600">Kitob topilmadi.</div>;
   }
 
-  // После проверки можно безопасно «зафиксировать» ненулевой объект,
-  // чтобы TS больше не ругался в коллбеках ниже.
   const b = book as BookItem;
 
   function onRate(v: number) {

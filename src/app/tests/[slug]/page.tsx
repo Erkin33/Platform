@@ -1,6 +1,8 @@
+// src/app/tests/[slug]/page.tsx
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { getUser } from "@/lib/user";
 import { getTestBySlug, addAttempt, lastAttemptFor, type TestItem } from "@/lib/tests";
@@ -57,9 +59,9 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
           <div className="mt-3 text-[15px]">
             To‘g‘ri javoblar: <b>{result?.correct}</b> / {result?.total} — <b>{result?.scorePercent}</b>/100
           </div>
-          <a href="/tests" className="mt-6 inline-block rounded-xl border px-4 py-2 hover:bg-neutral-50">
+          <Link href="/tests" className="mt-6 inline-block rounded-xl border px-4 py-2 hover:bg-neutral-50">
             Testlarga qaytish
-          </a>
+          </Link>
         </div>
       </div>
     );

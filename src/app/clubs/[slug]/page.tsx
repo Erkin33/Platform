@@ -1,6 +1,7 @@
+// src/app/clubs/[slug]/page.tsx
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { CalendarDays, Users } from "lucide-react";
 import {
   getClubBySlug,
@@ -11,21 +12,19 @@ import {
   CLUBS_CHANGED,
   MEMBERSHIP_CHANGED,
 } from "@/lib/clubs";
-import { getUser, type Role } from "@/lib/user";
+import { getUser } from "@/lib/user";
 
 export default function ClubDetailsPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = use(props.params);
 
-  const [role, setRole] = useState<Role | null>(null);
   const [uid, setUid] = useState("current");
   const [club, setClub] = useState<ClubItem | null>(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     const u = getUser();
-    setRole(u.role);
     setUid(u.name || "current");
     setClub(getClubBySlug(slug) || null);
-  };
+  }, [slug]);
 
   useEffect(() => {
     load();
@@ -38,7 +37,7 @@ export default function ClubDetailsPage(props: { params: Promise<{ slug: string 
       window.removeEventListener(MEMBERSHIP_CHANGED, on);
       window.removeEventListener("storage", on);
     };
-  }, [slug]);
+  }, [load]);
 
   if (!club) return <div className="text-neutral-600">Klub topilmadi.</div>;
 
@@ -52,7 +51,7 @@ export default function ClubDetailsPage(props: { params: Promise<{ slug: string 
           <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-neutral-700 sm:grid-cols-2">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-neutral-500" />
-              {club.members.length} a'zo
+              {club.members.length} aʼzo
             </div>
             {club.nextMeeting && (
               <div className="flex items-center gap-2">
@@ -68,7 +67,7 @@ export default function ClubDetailsPage(props: { params: Promise<{ slug: string 
               onClick={() => joinClub(club.id, uid)}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
-              Qo'shilish
+              Qo‘shilish
             </button>
           ) : (
             <button
@@ -88,7 +87,7 @@ export default function ClubDetailsPage(props: { params: Promise<{ slug: string 
         </section>
       )}
 
-      {/* заглушка под будущий чат/файлы */}
+      {/* zaglushka pod budushchiy chat/fayly */}
       <section className="rounded-2xl border bg-white p-5">
         <h3 className="text-[15px] font-semibold">Chat (tez orada)</h3>
         <p className="mt-1 text-[14px] text-neutral-600">

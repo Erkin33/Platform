@@ -1,6 +1,7 @@
+// src/components/LiveDiagnostics.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getUser } from "@/lib/user";
 import {
   getTests,
@@ -23,9 +24,8 @@ export default function LiveDiagnostics() {
   const [completed, setCompleted] = useState(0);
   const [avg, setAvg] = useState(0);
   const [att, setAtt] = useState(0);
-  const [ts, setTs] = useState<number>(Date.now());
 
-  const lsRows: Row[] = useMemo(() => {
+  function readLsRows(): Row[] {
     const rows: Row[] = [];
     try {
       rows.push({
@@ -40,7 +40,7 @@ export default function LiveDiagnostics() {
       // ignore
     }
     return rows;
-  }, [ts]);
+  }
 
   function recalc() {
     const u = getUser();
@@ -60,7 +60,6 @@ export default function LiveDiagnostics() {
     setCompleted(c);
     setAvg(p);
     setAtt(dv);
-    setTs(Date.now());
   }
 
   useEffect(() => {
@@ -89,6 +88,8 @@ export default function LiveDiagnostics() {
       console.error(e);
     }
   }
+
+  const lsRows = readLsRows();
 
   return (
     <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-4">

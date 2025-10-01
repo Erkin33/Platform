@@ -116,7 +116,7 @@ export default function ClubsAdminPage() {
             <div>
               <div className="font-medium">{c.title}</div>
               <div className="text-xs text-neutral-500">
-                {c.category} {c.nextMeeting ? `• Keyingi: ${formatDate(c.nextMeeting)}` : ""} • {c.members.length} a'zo
+                {c.category} {c.nextMeeting ? `• Keyingi: ${formatDate(c.nextMeeting)}` : ""} • {c.members.length} a‘zo
               </div>
             </div>
             <div className="flex items-center gap-2">

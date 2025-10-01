@@ -1,7 +1,8 @@
 // app/c/[id]/page.tsx
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   getSectionByIdOrSlug,
   upsertSection,
@@ -30,11 +31,41 @@ import {
 } from "lucide-react";
 
 /**
- * Next.js 15 — params теперь Promise.
- * Обязательно распаковываем через React.use()
+ * Блок для СОЗДАНИЯ: без id, с удобными опциональными полями.
+ * Используется только при addBlock(..., payload).
+ */
+type NewBlock = Omit<Block, "id"> &
+  Partial<{
+    text: string;
+    items: string[];
+    src: string;
+    alt: string;
+    href: string;
+    label: string;
+    html: string;
+  }>;
+
+/**
+ * Блок для ОТОБРАЖЕНИЯ/РЕДАКТИРОВАНИЯ: уже существует (есть id),
+ * но добавляем опциональные поля контента для удобства.
+ */
+type ExtendedBlock = Block &
+  Partial<{
+    text: string;
+    items: string[];
+    src: string;
+    alt: string;
+    href: string;
+    label: string;
+    html: string;
+  }>;
+
+/**
+ * Next.js 15 — params endi Promise bo‘ladi.
+ * React.use() orqali ochamiz
  */
 export default function CustomSectionPage(props: { params: Promise<{ id: string }> }) {
-  // 1) ВСЕ хуки — СТРОГО ВВЕРХУ КОМПОНЕНТА
+  // 1) Barcha hook-lar komponent yuqorisida
   const { id } = use(props.params);
 
   const textRef = useRef<HTMLDivElement>(null);
@@ -45,7 +76,7 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
 
-  function load() {
+  const load = useCallback(() => {
     const u = getUser();
     setIsAdmin(u.role === "admin");
 
@@ -56,7 +87,7 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
       return;
     }
 
-    // если раздела нет — создаём пустой для админа (чтобы можно было сразу наполнять)
+    // bo‘lim yo‘q — admin uchun darhol bo‘sh bo‘lim yaratamiz
     if (u.role === "admin") {
       upsertSection({ id, title: "Yangi bo‘lim" });
       const ns = getSectionByIdOrSlug(id) ?? null;
@@ -65,7 +96,7 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
     } else {
       setSection(null);
     }
-  }
+  }, [id]);
 
   useEffect(() => {
     load();
@@ -76,9 +107,9 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
       window.removeEventListener(SECTIONS_CHANGED, on);
       window.removeEventListener("storage", on);
     };
-  }, [id]);
+  }, [load]);
 
-  // ===== Добавление блоков =====
+  // ===== Blok qo‘shish =====
   async function add(type: Block["type"]) {
     if (!section) return;
 
@@ -90,31 +121,40 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
         const f = input.files?.[0];
         if (!f) return;
         const src = await readFileAsDataURL(f);
-        // В вашей модели Block поля могут отличаться — отдаём как any
-        addBlock(section.id, { type: "image", src, alt: "" } as any);
+        const payload: NewBlock = { type: "image", src, alt: "" };
+        addBlock(section.id, payload);
       };
       input.click();
       return;
     }
 
-    // Ниже — те же комментарии: отдаём shape через any, чтобы не спорить с типом Omit<Block,"id">
-    if (type === "heading") addBlock(section.id, { type: "heading", text: "Sarlavha" } as any);
-    if (type === "paragraph") addBlock(section.id, { type: "paragraph", text: "Matn..." } as any);
-    if (type === "list") addBlock(section.id, { type: "list", items: ["Band 1", "Band 2"] } as any);
-    if (type === "link")
-      addBlock(
-        section.id,
-        { type: "link", href: "https://example.com", label: "Havola" } as any
-      );
-    if (type === "embed")
-      addBlock(
-        section.id,
-        {
-          type: "embed",
-          html:
-            `<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ" allowfullscreen></iframe>`,
-        } as any
-      );
+    if (type === "heading") {
+      const payload: NewBlock = { type: "heading", text: "Sarlavha" };
+      addBlock(section.id, payload);
+    }
+    if (type === "paragraph") {
+      const payload: NewBlock = { type: "paragraph", text: "Matn..." };
+      addBlock(section.id, payload);
+    }
+    if (type === "list") {
+      const payload: NewBlock = { type: "list", items: ["Band 1", "Band 2"] };
+      addBlock(section.id, payload);
+    }
+    if (type === "link") {
+      const payload: NewBlock = {
+        type: "link",
+        href: "https://example.com",
+        label: "Havola",
+      };
+      addBlock(section.id, payload);
+    }
+    if (type === "embed") {
+      const payload: NewBlock = {
+        type: "embed",
+        html: `<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ" allowfullscreen></iframe>`,
+      };
+      addBlock(section.id, payload);
+    }
   }
 
   // ===== Drag & drop =====
@@ -128,7 +168,7 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
     reorderBlocks(section.id, from, toIdx);
   }
 
-  // ===== Сохранение заголовка =====
+  // ===== Sarlavhani saqlash =====
   function saveTitle() {
     if (!section) return;
     if (!titleDraft.trim()) {
@@ -197,7 +237,7 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
         )}
       </header>
 
-      {/* Контент секции */}
+      {/* Kontent */}
       <div className="space-y-3">
         {section.blocks.map((b, i) => (
           <div
@@ -216,9 +256,9 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
             )}
 
             <BlockView
-              block={b}
+              block={b as ExtendedBlock}
               editable={isAdmin}
-              onChange={(patch) => updateBlock(section.id, b.id, patch as any)}
+              onChange={(patch) => updateBlock(section.id, b.id, patch as Partial<Block>)}
               onDelete={() => deleteBlock(section.id, b.id)}
             />
           </div>
@@ -231,7 +271,7 @@ export default function CustomSectionPage(props: { params: Promise<{ id: string 
         )}
       </div>
 
-      {/* Скрытый div только для восстановления скролла текста */}
+      {/* yashirin div — matn scroll-ni tiklash uchun */}
       <div ref={textRef} className="hidden" />
     </div>
   );
@@ -266,57 +306,70 @@ function BlockView({
   onChange,
   onDelete,
 }: {
-  block: Block;
+  block: ExtendedBlock;
   editable: boolean;
   onChange: (patch: Partial<Block>) => void;
   onDelete: () => void;
 }) {
+  // heading
   if (block.type === "heading") {
+    const value: string = block.text ?? "";
     return (
       <Editable
         tag="h2"
         className="text-xl font-semibold"
-        value={(block as any).text ?? ""}
+        value={value}
         editable={editable}
-        onChange={(v) => onChange({ ...(block as any), text: v } as any)}
+        onChange={(v) => onChange({ ...block, text: v })}
         onDelete={onDelete}
       />
     );
   }
+  // paragraph
   if (block.type === "paragraph") {
+    const value: string = block.text ?? "";
     return (
       <Editable
         tag="p"
         className="leading-7 text-[15px]"
-        value={(block as any).text ?? ""}
+        value={value}
         editable={editable}
-        onChange={(v) => onChange({ ...(block as any), text: v } as any)}
+        onChange={(v) => onChange({ ...block, text: v })}
         onDelete={onDelete}
       />
     );
   }
+  // list
   if (block.type === "list") {
-    const items = (block as any).items as string[] | undefined;
+    const items: string[] = block.items ?? [];
     return (
       <ListEditor
-        items={items ?? []}
+        items={items}
         editable={editable}
-        onChange={(items2) => onChange({ ...(block as any), items: items2 } as any)}
+        onChange={(items2) => onChange({ ...block, items: items2 })}
         onDelete={onDelete}
       />
     );
   }
+  // image (next/image)
   if (block.type === "image") {
-    const b = block as any;
+    const src: string = block.src || "";
+    const alt: string = block.alt || "";
     return (
       <div className="flex flex-col items-start gap-2">
-        <img src={b.src} alt={b.alt || ""} className="max-h-[420px] rounded-xl border" />
+        <Image
+          src={src}
+          alt={alt}
+          width={1200}
+          height={800}
+          className="h-auto max-h-[420px] w-auto rounded-xl border"
+        />
         {editable && (
           <input
             className="w-full max-w-sm rounded-xl border px-3 py-1.5 text-sm"
             placeholder="Alt (ixtiyoriy)"
-            value={b.alt ?? ""}
-            onChange={(e) => onChange({ ...b, alt: e.target.value } as any)}
+            value={alt}
+            onChange={(e) => onChange({ ...block, alt: e.target.value })}
           />
         )}
         {editable && (
@@ -330,13 +383,14 @@ function BlockView({
       </div>
     );
   }
+  // embed html
   if (block.type === "embed") {
-    const b = block as any;
+    const html: string = block.html ?? "";
     return (
       <div className="w-full">
         <div
           className="rounded-xl border p-2 [&>iframe]:mx-auto [&>iframe]:block [&>iframe]:max-w-full"
-          dangerouslySetInnerHTML={{ __html: b.html }}
+          dangerouslySetInnerHTML={{ __html: html }}
         />
         {editable && (
           <>
@@ -344,8 +398,8 @@ function BlockView({
               className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
               rows={4}
               placeholder="<iframe ...></iframe>"
-              value={b.html ?? ""}
-              onChange={(e) => onChange({ ...b, html: e.target.value } as any)}
+              value={html}
+              onChange={(e) => onChange({ ...block, html: e.target.value })}
             />
             <button
               onClick={onDelete}
@@ -358,24 +412,26 @@ function BlockView({
       </div>
     );
   }
+  // link
   if (block.type === "link") {
-    const b = block as any;
+    const href: string = block.href ?? "";
+    const label: string = block.label ?? "";
     return (
       <div className="flex items-center gap-2">
-        <a className="text-indigo-600 underline" href={b.href} target="_blank" rel="noreferrer">
-          {b.label || b.href}
+        <a className="text-indigo-600 underline" href={href} target="_blank" rel="noreferrer">
+          {label || href}
         </a>
         {editable && (
           <div className="flex items-center gap-2">
             <input
               className="w-64 rounded-xl border px-3 py-1.5 text-sm"
-              value={b.href ?? ""}
-              onChange={(e) => onChange({ ...b, href: e.target.value } as any)}
+              value={href}
+              onChange={(e) => onChange({ ...block, href: e.target.value })}
             />
             <input
               className="w-48 rounded-xl border px-3 py-1.5 text-sm"
-              value={b.label ?? ""}
-              onChange={(e) => onChange({ ...b, label: e.target.value } as any)}
+              value={label}
+              onChange={(e) => onChange({ ...block, label: e.target.value })}
             />
             <button
               onClick={onDelete}
@@ -406,7 +462,7 @@ function Editable({
   onChange: (v: string) => void;
   onDelete: () => void;
 }) {
-  const Tag: any = tag;
+  // Без динамического JSX-тега — никакого JSX/ElementType/JSX.IntrinsicElements
   return (
     <div>
       {editable ? (
@@ -426,8 +482,10 @@ function Editable({
             </button>
           </div>
         </>
+      ) : tag === "h2" ? (
+        <h2 className={className}>{value}</h2>
       ) : (
-        <Tag className={className}>{value}</Tag>
+        <p className={className}>{value}</p>
       )}
     </div>
   );

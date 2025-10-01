@@ -39,9 +39,9 @@ export default function BooksAdminPage() {
         addTextBook({ title, author, pages, text });
       } else {
         if (!file) throw new Error("PDF faylni tanlang.");
-        // 1) добавляем метаданные
+        // 1) metadata
         const created = addPdfBook({ title, author, pages });
-        // 2) сохраняем сам PDF в IndexedDB
+        // 2) PDF ni IndexedDB ga saqlash
         await savePdfBlob(created.id, file);
       }
 
@@ -51,8 +51,9 @@ export default function BooksAdminPage() {
       setText("");
       setFile(null);
       load();
-    } catch (err: any) {
-      setError(err?.message || "Xatolik.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Xatolik.";
+      setError(msg);
     }
   }
 

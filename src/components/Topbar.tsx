@@ -1,8 +1,9 @@
+// src/components/Topbar.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import NotificationBell from "@/components/NotificationBell";
-import { getUser, saveUser, toggleRole, USER_CHANGED, type User } from "@/lib/user";
+import { getUser, toggleRole, USER_CHANGED, type User } from "@/lib/user";
 import { Menu } from "lucide-react";
 
 /** Универсальный топбар для DashboardShell (вставь в header) */

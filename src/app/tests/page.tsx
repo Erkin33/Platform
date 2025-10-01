@@ -1,3 +1,4 @@
+// src/app/tests/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -82,8 +83,9 @@ export default function TestsPage() {
       });
       setOpenForm(false);
       setForm({ title: "", subject: "", durationMin: 60, status: "active", textarea: "" });
-    } catch (err: any) {
-      alert(err?.message ?? "Xatolik");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Xatolik";
+      alert(msg);
     }
   }
 
@@ -109,8 +111,9 @@ export default function TestsPage() {
         });
       }
       setEditing(null);
-    } catch (err: any) {
-      alert(err?.message ?? "Xatolik");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Xatolik";
+      alert(msg);
     }
   }
 

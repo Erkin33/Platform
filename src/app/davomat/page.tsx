@@ -1,4 +1,4 @@
-// app/davomat/page.tsx
+// src/app/davomat/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -38,7 +38,6 @@ function lsGet<T>(key: string, fb: T): T {
 }
 
 function lsEnsureSeed() {
-  // Сидим только на клиенте и только если пусто
   if (!isBrowser()) return;
 
   if (!window.localStorage.getItem(K.COURSES)) {
@@ -76,8 +75,9 @@ export default function DavomatPage() {
     lsEnsureSeed();
     loadFromLS();
 
+    const keys = new Set<string>([K.COURSES, K.STATS]);
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || [K.COURSES, K.STATS].includes(e.key as any)) {
+      if (!e.key || keys.has(e.key)) {
         loadFromLS();
       }
     };
@@ -112,7 +112,7 @@ export default function DavomatPage() {
         <h1 className="text-2xl font-semibold">Davomat</h1>
 
         <div className="flex items-center gap-3">
-          {/* Общий процент (только когда данные уже есть, чтобы не мигал SSR/CSR) */}
+          {/* Общий процент */}
           {mounted && courses && stats && (
             <div className="text-right">
               <div className="text-[28px] font-bold leading-none">{overall}%</div>
