@@ -1,13 +1,11 @@
-// src/app/tests/[slug]/page.tsx
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, RotateCcw } from "lucide-react";
 import { getUser } from "@/lib/user";
-import { getTestBySlug, addAttempt, lastAttemptFor, type TestItem } from "@/lib/tests";
+import { getTestBySlug, addAttempt, lastAttemptFor, removeAttemptsFor, type TestItem } from "@/lib/tests";
 
-/** Next.js 15 — params это Promise */
 export default function TestRunner(props: { params: Promise<{ slug: string }> }) {
   const { slug } = use(props.params);
   const [userId, setUserId] = useState<string>("current");
@@ -27,42 +25,94 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!test) return;
-    // не даём пройти драфтовый тест
-    if (test.status !== "active") return;
-
+    if (!test || test.status !== "active") return;
     const total = test.questions.length;
     if (total === 0) return alert("Bu testda savollar yo‘q.");
-
     let correct = 0;
-    test.questions.forEach((q) => {
-      if (answers[q.id] === q.correctIndex) correct++;
-    });
-
+    test.questions.forEach((q) => { if (answers[q.id] === q.correctIndex) correct++; });
     const scorePercent = Math.round((correct / total) * 100);
-    addAttempt({ testId: test.id, userId, correct, total, scorePercent });
+    addAttempt({ testId: test.id, userId, correct, total, scorePercent, answers });
     setSubmitted(true);
   }
 
-  if (submitted || last) {
-    const result = lastAttemptFor(userId, test.id);
+  const showResult = submitted || !!last;
+  const result = showResult ? lastAttemptFor(userId, test.id) : undefined;
+
+  if (showResult && result) {
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-3xl">
         <h1 className="text-2xl font-semibold">{test.title}</h1>
         <p className="text-sm text-neutral-500 mt-1">{test.subject}</p>
 
         <div className="mt-6 rounded-2xl border bg-white p-5">
-          <div className="flex items-center gap-2 text-emerald-600">
-            <CheckCircle2 className="h-5 w-5" />
-            <div className="font-semibold">Test yakunlandi</div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-600">
+              <CheckCircle2 className="h-5 w-5" />
+              <div className="font-semibold">Test yakunlandi</div>
+            </div>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-50"
+              onClick={() => {
+                removeAttemptsFor(userId, test.id);
+                setSubmitted(false);
+                setAnswers({});
+              }}
+              title="Qayta urinish"
+            >
+              <RotateCcw className="h-4 w-4" /> Qayta urinish
+            </button>
           </div>
+
           <div className="mt-3 text-[15px]">
-            To‘g‘ri javoblar: <b>{result?.correct}</b> / {result?.total} — <b>{result?.scorePercent}</b>/100
+            To‘g‘ri javoblar: <b>{result.correct}</b> / {result.total} — <b>{result.scorePercent}</b>/100
           </div>
-          <Link href="/tests" className="mt-6 inline-block rounded-xl border px-4 py-2 hover:bg-neutral-50">
-            Testlarga qaytish
-          </Link>
         </div>
+
+        <div className="mt-6 space-y-4">
+          {test.questions.map((q, idx) => {
+            const selected = result.answers[q.id];
+            const isCorrect = selected === q.correctIndex;
+            return (
+              <div
+                key={q.id}
+                className={`rounded-2xl border p-4 ${isCorrect ? "bg-emerald-50 border-emerald-200" : "bg-rose-50/60 border-rose-200"}`}
+              >
+                <div className="mb-3 font-medium">
+                  {idx + 1}. {q.text}
+                </div>
+                <div className="grid gap-2">
+                  {q.choices.map((choice, i) => {
+                    const chosen = selected === i;
+                    const correct = q.correctIndex === i;
+                    const ring =
+                      correct ? "ring-2 ring-emerald-400" : chosen && !correct ? "ring-2 ring-rose-400" : "ring-0";
+                    const bg =
+                      correct ? "bg-emerald-100/70" : chosen && !correct ? "bg-rose-100/70" : "bg-white";
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-lg border px-3 py-2 text-sm ${bg} ${ring}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input type="radio" disabled checked={chosen} className="h-4 w-4" readOnly />
+                          <span>{choice}</span>
+                          {correct && <span className="ml-2 rounded bg-emerald-200 px-2 py-0.5 text-[11px]">To‘g‘ri</span>}
+                          {chosen && !correct && (
+                            <span className="ml-2 rounded bg-rose-200 px-2 py-0.5 text-[11px]">Noto‘g‘ri</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Link href="/tests" className="mt-6 inline-block rounded-xl border px-4 py-2 hover:bg-neutral-50">
+          Testlarga qaytish
+        </Link>
       </div>
     );
   }
@@ -94,7 +144,6 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
             </div>
           </div>
         ))}
-
         <div className="flex justify-end">
           <button className="rounded-xl bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">
             Yakunlash

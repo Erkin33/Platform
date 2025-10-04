@@ -13,6 +13,7 @@ import {
   ATTEMPTS_CHANGED,
   TESTS_CHANGED,
   PROGRESS_CHANGED,
+  type TestItem,
 } from "@/lib/tests";
 
 /**
@@ -46,18 +47,25 @@ export default function RootLiveDashboard() {
     setRawAttempts(rawA);
 
     const tests = getTests();
-    const atts  = getAttempts();
+    const atts = getAttempts();
     setTestsLen(tests.length);
     setAttemptsLen(atts.length);
 
-    const c  = getCompletedTestsCount(id);
+    const c = getCompletedTestsCount(id);
     const av = getUserProgressPercent(id); // средний %
-    const sh = getAttendancePercent(id);   // доля завершённых от активных
+    const sh = getAttendancePercent(id); // доля завершённых от активных
     setCompleted(c);
     setAvgPercent(av);
     setAttShare(sh);
 
-    console.log("[/ RootLiveDashboard] recompute", { id, tests: tests.length, attempts: atts.length, completed: c, avg: av, share: sh });
+    console.log("[/ RootLiveDashboard] recompute", {
+      id,
+      tests: tests.length,
+      attempts: atts.length,
+      completed: c,
+      avg: av,
+      share: sh,
+    });
   }
 
   useEffect(() => {
@@ -88,31 +96,77 @@ export default function RootLiveDashboard() {
   // Добавить одну тестовую попытку для текущего пользователя по первому тесту
   function onMockAttempt() {
     const tests = getTests();
-    if (tests.length === 0) { alert("Tests not found"); return; }
-    const t = tests[0];
+    if (tests.length === 0) {
+      alert("Tests not found");
+      return;
+    }
+    const t: TestItem = tests[0];
     const u = getUser();
     const id = u.name || "current";
-    // сделаем половину правильных «условно»
-    const total = t.questions.length || 2;
-    const correct = Math.max(0, Math.floor(total / 2));
+
+    // Сформируем ответы: для чётных вопросов — правильный ответ, для нечётных — заведомо неправильный
+    const answers: Record<string, number> = {};
+    t.questions.forEach((q, idx) => {
+      if (idx % 2 === 0) {
+        // правильный
+        answers[q.id] = q.correctIndex;
+      } else {
+        // неправильный (берём 0, если правильный не 0; иначе 1, при наличии вариантов)
+        const wrong =
+          q.correctIndex !== 0
+            ? 0
+            : Math.min(1, Math.max(0, q.choices.length - 1));
+        answers[q.id] = wrong;
+      }
+    });
+
+    // Подсчёт корректных ответов
+    let correct = 0;
+    t.questions.forEach((q) => {
+      if (answers[q.id] === q.correctIndex) correct++;
+    });
+
+    const total = t.questions.length || 0;
+    if (total === 0) {
+      alert("Bu testda savollar yo‘q.");
+      return;
+    }
     const scorePercent = Math.round((correct / total) * 100);
 
-    addAttempt({ testId: t.id, userId: id, correct, total, scorePercent });
+    // ВАЖНО: теперь добавляем answers — это требуется типом Attempt
+    addAttempt({
+      testId: t.id,
+      userId: id,
+      correct,
+      total,
+      scorePercent,
+      answers,
+    });
+
     recalc();
   }
 
   return (
     <div className="mx-auto max-w-[900px] p-6">
-      <h1 className="text-2xl font-bold text-emerald-700">ROOT LIVE DASHBOARD (/)</h1>
+      <h1 className="text-2xl font-bold text-emerald-700">
+        ROOT LIVE DASHBOARD (/)
+      </h1>
       <p className="mt-1 text-[13px] text-neutral-600">
-        Если вы видите этот заголовок, значит рендерится именно <code>app/page.tsx</code>, а не какой-то другой роут.
+        Если вы видите этот заголовок, значит рендерится именно{" "}
+        <code>app/page.tsx</code>, а не какой-то другой роут.
       </p>
 
       {/* Живые карточки */}
       <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card label="Tugallangan testlar (шт)" value={`${completed}`} />
-        <Card label="Davomat (o‘rtacha % по завершённым)" value={`${avgPercent}%`} />
-        <Card label="Davomat (yakunlangan ulushi)" value={`${attShare}%`} />
+        <Card
+          label="Davomat (o‘rtacha % по завершённым)"
+          value={`${avgPercent}%`}
+        />
+        <Card
+          label="Davomat (yakunlangan ulushi)"
+          value={`${attShare}%`}
+        />
         <Card label="User ID" value={uid} />
       </div>
 
@@ -140,14 +194,24 @@ export default function RootLiveDashboard() {
 
       {/* Отладка стораджа */}
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Dump title="localStorage[uniplatform_tests_v1]" value={rawTests} count={testsLen} />
-        <Dump title="localStorage[uniplatform_attempts_v1]" value={rawAttempts} count={attemptsLen} />
+        <Dump
+          title="localStorage[uniplatform_tests_v1]"
+          value={rawTests}
+          count={testsLen}
+        />
+        <Dump
+          title="localStorage[uniplatform_attempts_v1]"
+          value={rawAttempts}
+          count={attemptsLen}
+        />
       </div>
 
       <div className="mt-6 text-[12px] text-neutral-500">
-        Подсказка: если всё работает тут, но не работает на вашей «основной» главной — значит рендерится другой роут
-        (например, <code>app/(dashboard)/page.tsx</code> внутри собственного layout). Тогда перенесите эту логику в
-        нужный <code>page.tsx</code> или удалите старую страницу, чтобы она не перекрывала контент.
+        Подсказка: если всё работает тут, но не работает на вашей «основной»
+        главной — значит рендерится другой роут (например,
+        <code>app/(dashboard)/page.tsx</code> внутри собственного layout).
+        Тогда перенесите эту логику в нужный <code>page.tsx</code> или удалите
+        старую страницу, чтобы она не перекрывала контент.
       </div>
     </div>
   );
@@ -157,18 +221,32 @@ function Card({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white">
       <div className="px-6 py-5">
-        <div className="text-[12px] tracking-wide text-neutral-500">{label}</div>
-        <div className="mt-1 text-[20px] font-semibold text-neutral-900">{value}</div>
+        <div className="text-[12px] tracking-wide text-neutral-500">
+          {label}
+        </div>
+        <div className="mt-1 text-[20px] font-semibold text-neutral-900">
+          {value}
+        </div>
       </div>
     </div>
   );
 }
 
-function Dump({ title, value, count }: { title: string; value: string; count: number }) {
+function Dump({
+  title,
+  value,
+  count,
+}: {
+  title: string;
+  value: string;
+  count: number;
+}) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white">
       <div className="px-6 py-4">
-        <div className="text-[12px] font-medium text-neutral-700">{title} (count: {count})</div>
+        <div className="text-[12px] font-medium text-neutral-700">
+          {title} (count: {count})
+        </div>
         <pre className="mt-2 max-h-60 overflow-auto rounded bg-neutral-50 p-2 text-[12px] leading-4">
 {value}
         </pre>

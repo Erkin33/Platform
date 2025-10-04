@@ -1,4 +1,3 @@
-// src/app/clubs/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,10 +8,9 @@ import {
   CLUBS_CHANGED,
   MEMBERSHIP_CHANGED,
   myClubs,
-  joinClub,
-  leaveClub,
+  requestJoinClub,
   type ClubItem,
-  isMember,
+  isApprovedMember,
 } from "@/lib/clubs";
 import { getUser, type Role } from "@/lib/user";
 
@@ -22,6 +20,8 @@ export default function ClubsPage() {
   const [query, setQuery] = useState("");
   const [clubs, setClubs] = useState<ClubItem[]>([]);
   const [mine, setMine] = useState<ClubItem[]>([]);
+  const [applyFor, setApplyFor] = useState<ClubItem | null>(null);
+  const [form, setForm] = useState({ fullName: "", phone: "", faculty: "", course: "", note: "" });
 
   const load = () => {
     const u = getUser();
@@ -61,7 +61,6 @@ export default function ClubsPage() {
 
   return (
     <div className="space-y-6">
-      {/* header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Klublar</h1>
         <div className="flex items-center gap-2">
@@ -82,10 +81,9 @@ export default function ClubsPage() {
         </div>
       </div>
 
-      {/* list */}
       <div className="space-y-4">
         {filtered.map((c) => (
-          <ClubRow key={c.id} c={c} uid={uid} />
+          <ClubRow key={c.id} c={c} uid={uid} onApply={() => setApplyFor(c)} />
         ))}
         {filtered.length === 0 && (
           <div className="rounded-2xl border bg-white px-5 py-6 text-sm text-neutral-500">
@@ -94,7 +92,6 @@ export default function ClubsPage() {
         )}
       </div>
 
-      {/* my clubs */}
       <section className="rounded-2xl border bg-indigo-50 p-4">
         <h3 className="text-[16px] font-semibold">Mening klublarim</h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -117,12 +114,42 @@ export default function ClubsPage() {
           ))}
         </div>
       </section>
+
+      {applyFor && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              requestJoinClub(applyFor.id, uid, form);
+              setApplyFor(null);
+              setForm({ fullName: "", phone: "", faculty: "", course: "", note: "" });
+              alert("Ariza yuborildi. Admin tasdiqlashini kuting.");
+            }}
+            className="w-full max-w-lg space-y-3 rounded-2xl border bg-white p-4"
+          >
+            <div className="text-lg font-semibold">Klubga ariza</div>
+            <div className="rounded bg-neutral-50 p-2 text-sm">{applyFor.title}</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input className="rounded-xl border px-3 py-2" placeholder="Ism familiya" value={form.fullName} onChange={e=>setForm({...form, fullName: e.target.value})} required />
+              <input className="rounded-xl border px-3 py-2" placeholder="+998 ..." value={form.phone} onChange={e=>setForm({...form, phone: e.target.value})} required />
+              <input className="rounded-xl border px-3 py-2" placeholder="Fakultet" value={form.faculty} onChange={e=>setForm({...form, faculty: e.target.value})} required />
+              <input className="rounded-xl border px-3 py-2" placeholder="Kurs" value={form.course} onChange={e=>setForm({...form, course: e.target.value})} required />
+              <textarea className="rounded-xl border px-3 py-2 sm:col-span-2" rows={3} placeholder="Izoh (ixtiyoriy)" value={form.note} onChange={e=>setForm({...form, note: e.target.value})} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={()=>setApplyFor(null)} className="rounded-xl border px-4 py-2">Bekor qilish</button>
+              <button className="rounded-xl bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">Yuborish</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
 
-function ClubRow({ c, uid }: { c: ClubItem; uid: string }) {
-  const member = isMember(c, uid);
+function ClubRow({ c, uid, onApply }: { c: ClubItem; uid: string; onApply: () => void }) {
+  const isMember = isApprovedMember(c, uid);
+  const count = c.members.filter(m => m.status === "approved").length;
 
   return (
     <div className="rounded-2xl border bg-white px-5 py-4">
@@ -142,7 +169,7 @@ function ClubRow({ c, uid }: { c: ClubItem; uid: string }) {
           <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-neutral-600 sm:grid-cols-2">
             <div className="inline-flex items-center gap-2">
               <Users className="h-4 w-4 text-neutral-500" />
-              {c.members.length} aʼzo
+              {count} aʼzo
             </div>
             {c.nextMeeting && (
               <div className="inline-flex items-center gap-2">
@@ -160,20 +187,15 @@ function ClubRow({ c, uid }: { c: ClubItem; uid: string }) {
           >
             Batafsil
           </Link>
-          {!member ? (
+          {!isMember ? (
             <button
-              onClick={() => joinClub(c.id, uid)}
+              onClick={onApply}
               className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
-              Qo‘shilish
+              Ariza qoldirish
             </button>
           ) : (
-            <button
-              onClick={() => leaveClub(c.id, uid)}
-              className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100"
-            >
-              Tark etish
-            </button>
+            <span className="rounded-xl border px-3 py-2 text-sm text-emerald-700">Aʼzo</span>
           )}
         </div>
       </div>

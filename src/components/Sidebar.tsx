@@ -55,6 +55,10 @@ const BASE = [
   { href: "/clubs", title: "Klublar", Icon: UsersIcon },
   { href: "/scholarships", title: "Stipendiya", Icon: BadgeDollarSign },
   { href: "/davomat", title: "Davomat", Icon: CheckCircle },
+
+  // 🔹 добавлено:
+  { href: "/social", title: "Ijtimoiy faollik", Icon: Award },
+  { href: "/progress", title: "Mening progresslarim", Icon: Star },
 ] as const;
 
 /* ------------------------------------------------

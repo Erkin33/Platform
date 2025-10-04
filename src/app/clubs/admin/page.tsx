@@ -6,6 +6,8 @@ import {
   addClub,
   updateClub,
   removeClub,
+  exportMembersCSV,
+  importMembersCSV,
   type ClubItem,
   type ClubCategory,
 } from "@/lib/clubs";
@@ -55,6 +57,25 @@ export default function ClubsAdminPage() {
     removeClub(id);
     if (editing?.id === id) resetForm();
     load();
+  }
+
+  async function onImport(c: ClubItem, file?: File | null) {
+    if (!file) return;
+    const txt = await file.text();
+    importMembersCSV(c.id, txt);
+    load();
+    alert("Import yakunlandi");
+  }
+
+  function onExport(c: ClubItem) {
+    const csv = exportMembersCSV(c.id);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${c.slug}-members.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -116,13 +137,20 @@ export default function ClubsAdminPage() {
             <div>
               <div className="font-medium">{c.title}</div>
               <div className="text-xs text-neutral-500">
-                {c.category} {c.nextMeeting ? `• Keyingi: ${formatDate(c.nextMeeting)}` : ""} • {c.members.length} a‘zo
+                {c.category} {c.nextMeeting ? `• Keyingi: ${formatDate(c.nextMeeting)}` : ""} • {c.members.filter(m=>m.status==="approved").length} a‘zo
               </div>
             </div>
             <div className="flex items-center gap-2">
               <a className="rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-50" href={`/clubs/${encodeURIComponent(c.slug)}`}>
                 Ko‘rish
               </a>
+              <label className="cursor-pointer rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-50">
+                Import CSV
+                <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e)=>onImport(c, e.target.files?.[0] ?? null)} />
+              </label>
+              <button onClick={() => onExport(c)} className="rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-50">
+                Export CSV
+              </button>
               <button onClick={() => onEdit(c)} className="rounded-xl border px-3 py-1.5 text-sm hover:bg-neutral-50">
                 Tahrirlash
               </button>

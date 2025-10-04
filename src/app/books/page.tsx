@@ -12,7 +12,7 @@ import {
 } from "@/lib/books";
 import { getUser, type Role } from "@/lib/user";
 import Link from "next/link";
-import { Star } from "lucide-react";
+import { Star, FileText } from "lucide-react";
 
 export default function BooksPage() {
   const [q, setQ] = useState("");
@@ -92,13 +92,13 @@ export default function BooksPage() {
 function BookRow({ b, uid }: { b: BookItem; uid: string }) {
   const progress = getUserBookProgress(b, uid);
   const avg = getAverageRating(b);
-  const url = `/books/${encodeURIComponent(b.slug || b.id)}`; // slug или id — гарантированный переход
+  const url = `/books/${encodeURIComponent(b.slug || b.id)}`;
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white px-5 py-4">
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="text-[16px] font-semibold text-neutral-900">
+        <div className="min-w-0">
+          <div className="truncate text-[16px] font-semibold text-neutral-900">
             {b.title}
           </div>
           <div className="text-[13px] text-neutral-600">
@@ -119,11 +119,21 @@ function BookRow({ b, uid }: { b: BookItem; uid: string }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-1 text-[12px] text-neutral-600">
             <Star className="h-4 w-4 fill-yellow-400 stroke-yellow-400" />
             {avg}
           </div>
+
+          {b.testSlug && (
+            <Link
+              href={`/tests/${encodeURIComponent(b.testSlug)}`}
+              className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+              title="Ushbu kitob bo‘yicha test"
+            >
+              <FileText className="h-4 w-4" /> Test
+            </Link>
+          )}
 
           <Link
             href={url}

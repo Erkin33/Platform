@@ -1,4 +1,3 @@
-// src/app/scholarships/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -117,7 +116,6 @@ function Row({ s }: { s: Scholarship }) {
           </div>
           <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-neutral-700 sm:grid-cols-3">
             <div>
-              ${" "}
               <b>{formatAmount(s.amount, s.currency)}</b>
             </div>
             <div className="inline-flex items-center gap-2">
