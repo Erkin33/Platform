@@ -1,3 +1,4 @@
+// src/lib/tests.ts
 export type Question = {
   id: string;
   text: string;
@@ -6,6 +7,7 @@ export type Question = {
 };
 
 export type TestStatus = "active" | "draft";
+export type QuestionOrder = "random" | "sequential";
 
 export type QuestionBank = {
   id: string;
@@ -22,6 +24,10 @@ export type TestItem = {
   subject: string;
   durationMin: number;
   status: TestStatus;
+  // Новые поля
+  attemptsLimit: number;        // лимит попыток (0 = без лимита)
+  pointsPerQuestion: number;    // балл за вопрос
+  order: QuestionOrder;         // порядок вопросов
   questions: Question[];
   createdAt: number;
 };
@@ -33,12 +39,13 @@ export type Attempt = {
   correct: number;
   total: number;
   scorePercent: number;
+  scorePoints: number;   // добавили: итог в баллах
   finishedAt: number;
   answers: Record<string, number>;
 };
 
 const K = {
-  TESTS: "uniplatform_tests_v2",
+  TESTS: "uniplatform_tests_v3",            // bump ключей
   ATTEMPTS: "uniplatform_attempts_v3",
   BANKS: "uniplatform_question_banks_v1"
 } as const;
@@ -72,7 +79,8 @@ function emit(ev: string) { try { window.dispatchEvent(new Event(ev)); } catch {
 function seed() {
   if (!isBrowser()) return;
   if (!window.localStorage.getItem(K.BANKS)) {
-    const q = (text: string, choices: string[], correctIndex: number): Question => ({ id: uid(), text, choices, correctIndex });
+    const q = (text: string, choices: string[], correctIndex: number): Question =>
+      ({ id: uid(), text, choices, correctIndex });
     const banks: QuestionBank[] = [
       {
         id: uid(),
@@ -104,6 +112,7 @@ seed();
 
 export function seedTests() { seed(); }
 
+/* ===== Banks ===== */
 export function getBanks(): QuestionBank[] {
   seed();
   return lsGet<QuestionBank[]>(K.BANKS, []).sort((a, b) => b.createdAt - a.createdAt);
@@ -131,6 +140,9 @@ export function removeBank(id: string) {
   saveBanks(getBanks().filter(x => x.id !== id));
 }
 
+/** CSV format:
+ * Savol;Variant1;Variant2;...;correct_index (0-based)
+ */
 export function parseCSVQuestions(csv: string): Question[] {
   const rows = csv.split(/\r?\n/).map(r => r.trim()).filter(Boolean);
   const result: Question[] = [];
@@ -146,6 +158,7 @@ export function parseCSVQuestions(csv: string): Question[] {
   return result;
 }
 
+/* ===== Tests ===== */
 export function getTests(): TestItem[] {
   seed();
   return lsGet<TestItem[]>(K.TESTS, []).sort((a, b) => b.createdAt - a.createdAt);
@@ -155,11 +168,21 @@ export function saveTests(list: TestItem[]) {
   emit(TESTS_CHANGED);
   emit(PROGRESS_CHANGED);
 }
-export function addTest(partial: Omit<TestItem, "id" | "slug" | "createdAt"> & { slug?: string }) {
+export function addTest(
+  partial: Omit<TestItem, "id" | "slug" | "createdAt" | "status"> &
+    { status?: TestStatus; slug?: string }
+) {
   if (!partial.questions || partial.questions.length === 0) throw new Error("Savollar topilmadi");
   const bad = partial.questions.find(q => !q.choices || q.choices.length < 2);
   if (bad) throw new Error("Har bir savolda kamida 2 ta variant bo‘lishi kerak");
-  const t: TestItem = { id: uid(), slug: partial.slug ? slugify(partial.slug) : slugify(partial.title), createdAt: Date.now(), ...partial, status: partial.status ?? "active" };
+
+  const t: TestItem = {
+    id: uid(),
+    slug: partial.slug ? slugify(partial.slug) : slugify(partial.title),
+    createdAt: Date.now(),
+    status: partial.status ?? "active",
+    ...partial
+  };
   const list = getTests();
   list.unshift(t);
   saveTests(list);
@@ -180,6 +203,7 @@ export function getTestBySlug(slug: string) {
   return getTests().find(t => t.slug === slug);
 }
 
+/* ===== Attempts & progress ===== */
 export function getAttempts(): Attempt[] {
   seed();
   return lsGet<Attempt[]>(K.ATTEMPTS, []);
@@ -189,22 +213,29 @@ export function saveAttempts(list: Attempt[]) {
   emit(ATTEMPTS_CHANGED);
   emit(PROGRESS_CHANGED);
 }
-export function addAttempt(a: Omit<Attempt, "id" | "finishedAt">) {
-  const list = getAttempts();
-  list.unshift({ id: uid(), finishedAt: Date.now(), ...a });
-  saveAttempts(list);
-}
 export function attemptsByUser(userId: string) {
   return getAttempts().filter(a => a.userId === userId);
 }
+export function attemptsForTest(userId: string, testId: string) {
+  return getAttempts().filter(a => a.userId === userId && a.testId === testId);
+}
+export function attemptsCountFor(userId: string, testId: string) {
+  return attemptsForTest(userId, testId).length;
+}
 export function lastAttemptFor(userId: string, testId: string) {
-  return attemptsByUser(userId).find(a => a.testId === testId);
+  return attemptsForTest(userId, testId)[0];
 }
 export function removeAttemptsFor(userId: string, testId: string) {
   const list = getAttempts().filter(a => !(a.userId === userId && a.testId === testId));
   saveAttempts(list);
 }
+export function addAttempt(a: Omit<Attempt, "id" | "finishedAt">) {
+  const list = getAttempts();
+  list.unshift({ id: uid(), finishedAt: Date.now(), ...a });
+  saveAttempts(list);
+}
 
+/* ===== Utils ===== */
 export function sampleRandom<T>(arr: T[], n: number): T[] {
   const copy = arr.slice();
   for (let i = copy.length - 1; i > 0; i--) {

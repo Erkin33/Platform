@@ -1,44 +1,31 @@
+// src/app/events/[slug]/page.tsx
 "use client";
 
 import { use, useEffect, useState } from "react";
 import {
-  getEventBySlug,
-  updateEventBySlug,
-  requestRegistration,
-  unregisterFromEvent,
-  acceptInvite,
-  reviewRegistration,
-  myRegStatus,
-  hasInvite,
-  isRegistered,
-  spotsLeft,
-  type EventItem,
-  type EventDetails,
-  type RegistrationForm
+  getEventBySlug, updateEventBySlug,
+  requestRegistration, unregisterFromEvent, acceptInvite,
+  reviewRegistration, myRegStatus, hasInvite, isRegistered, spotsLeft,
+  type EventItem, type EventDetails, type RegistrationForm
 } from "@/lib/events";
 import { getUser, type Role } from "@/lib/user";
 import { CalendarDays, MapPin, Users, Save, PencilLine } from "lucide-react";
+import Link from "next/link";
 
 export default function EventDetailsPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = use(props.params);
   const [role, setRole] = useState<Role | null>(null);
-  const [userId, setUserId] = useState<string>("");
+  const [userId, setUserId] = useState<string>(""); 
   const [ev, setEv] = useState<EventItem | null>(null);
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<EventDetails>({ about: "", agenda: "", speakers: "", materials: "" });
 
+  useEffect(() => { const u = getUser(); setRole(u.role); setUserId(u.name || "current"); }, []);
   useEffect(() => {
-    const u = getUser();
-    setRole(u.role);
-    setUserId(u.name || "current");
-  }, []);
-  useEffect(() => {
-    const e = getEventBySlug(slug) || null;
-    setEv(e);
-    if (e?.details) setForm(e.details);
+    const e = getEventBySlug(slug) || null; setEv(e); if (e?.details) setForm(e.details);
   }, [slug]);
 
-  if (!ev) return <div className="text-neutral-600">Topilmadi (event not found).</div>;
+  if (!ev) return <div className="text-neutral-600">Topilmadi.</div>;
 
   const isAdmin = role === "admin";
   const left = spotsLeft(ev);
@@ -47,10 +34,7 @@ export default function EventDetailsPage(props: { params: Promise<{ slug: string
   const invited = userId ? hasInvite(ev, userId) : false;
 
   function saveDetails(e: React.FormEvent) {
-    e.preventDefault();
-    updateEventBySlug(slug, { details: form });
-    setEv(getEventBySlug(slug) || null);
-    setEdit(false);
+    e.preventDefault(); updateEventBySlug(slug, { details: form }); setEv(getEventBySlug(slug) || null); setEdit(false);
   }
 
   return (
@@ -67,35 +51,27 @@ export default function EventDetailsPage(props: { params: Promise<{ slug: string
       {role === "student" && (
         <div className="flex flex-wrap items-center gap-2">
           {invited && (
-            <button
-              className="rounded-lg border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700"
-              onClick={() => {
-                if (acceptInvite(ev.id, userId)) { alert("Taklif qabul qilindi!"); setEv(getEventBySlug(slug) || null); }
-                else { alert("Taklifni qabul qilib bo‘lmadi."); }
-              }}
-            >
+            <button className="rounded-lg border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700"
+              onClick={() => { if (acceptInvite(ev.id, userId)) { alert("Taklif qabul qilindi!"); setEv(getEventBySlug(slug) || null); } else { alert("Taklifni qabul qilib bo‘lmadi."); } }}>
               Siz jamoaga taklif qilindingiz — Qabul qilish
             </button>
           )}
           {status === "pending" && <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-700">Ariza ko‘rib chiqilmoqda</span>}
           {status === "frozen" && <span className="rounded-lg bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700">Ariza muzlatilgan</span>}
-          {status === "rejected" && <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm text-rose-700">Arizangiz rad etildi • Вы отклонены</span>}
+          {status === "rejected" && <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm text-rose-700">Arizangiz rad etildi</span>}
         </div>
       )}
 
       {role === "student" && (
         <div className="flex items-center gap-3">
-          {!registered && ev.status === "open" && left > 0 && (
-            <EnrollInline event={ev} userId={userId} onDone={() => setEv(getEventBySlug(slug) || null)} />
-          )}
+          {!registered && ev.status === "open" && left > 0 && <EnrollInline event={ev} userId={userId} onDone={() => setEv(getEventBySlug(slug) || null)} />}
           {registered && (
-            <button
-              className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
-              onClick={() => { unregisterFromEvent(ev.id, userId); setEv(getEventBySlug(slug) || null); }}
-            >
+            <button className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
+              onClick={() => { unregisterFromEvent(ev.id, userId); setEv(getEventBySlug(slug) || null); }}>
               Bekor qilish
             </button>
           )}
+          <Link href="/events" className="rounded-lg border px-4 py-2 text-sm hover:bg-neutral-50">Orqaga</Link>
         </div>
       )}
 
@@ -118,29 +94,6 @@ export default function EventDetailsPage(props: { params: Promise<{ slug: string
           <div><label className="mb-1 block text-sm font-medium">Materials (link yoki matn)</label><input className="w-full rounded-xl border px-3 py-2" value={form.materials ?? ""} onChange={(e) => setForm((s) => ({ ...s, materials: e.target.value }))} placeholder="https://..." /></div>
           <div className="flex justify-end gap-2"><button type="button" className="rounded-xl border px-4 py-2" onClick={() => setEdit(false)}>Bekor qilish</button><button className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"><Save className="h-4 w-4" /> Saqlash</button></div>
         </form>
-      )}
-
-      {isAdmin && ev.registrations.length > 0 && (
-        <section className="rounded-2xl border bg-white p-5">
-          <h3 className="mb-3 text-[15px] font-semibold">Arizalar</h3>
-          <div className="space-y-2">
-            {ev.registrations.map((r) => (
-              <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{r.form.fullName} <span className="ml-2 rounded bg-neutral-100 px-2 py-0.5 text-[11px]">{r.mode.toUpperCase()} • {r.status}</span></div>
-                  <div className="text-neutral-600">{r.form.phone} • {r.form.email}</div>
-                  {r.form.group && <div className="text-neutral-600">Guruh: {r.form.group}</div>}
-                  {r.form.note && <div className="text-neutral-600">Izoh: {r.form.note}</div>}
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <button onClick={() => { reviewRegistration(ev.id, r.id, "approve"); setEv(getEventBySlug(slug) || null); }} className="rounded-lg border-emerald-300 bg-emerald-50 px-3 py-1.5 text-emerald-700">Qabul</button>
-                  <button onClick={() => { reviewRegistration(ev.id, r.id, "freeze"); setEv(getEventBySlug(slug) || null); }} className="rounded-lg border-amber-300 bg-amber-50 px-3 py-1.5 text-amber-700">Muzlatish</button>
-                  <button onClick={() => { reviewRegistration(ev.id, r.id, "reject"); setEv(getEventBySlug(slug) || null); }} className="rounded-lg border-rose-300 bg-rose-50 px-3 py-1.5 text-rose-700">Rad etish</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
       )}
     </div>
   );
@@ -174,9 +127,8 @@ function EnrollInline({ event, userId, onDone }: { event: EventItem; userId: str
 }
 
 function formatRange(startISO: string, endISO: string) {
-  const s = new Date(startISO);
-  const e = new Date(endISO || startISO);
-  const sameDay = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
+  const s = new Date(startISO); const e = new Date(endISO || startISO);
+  const sameDay = s.getFullYear()===e.getFullYear() && s.getMonth()===e.getMonth() && s.getDate()===e.getDate();
   const date = s.toLocaleDateString("uz-UZ", { year: "numeric", month: "2-digit", day: "2-digit" });
   const sh = s.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", hour12: false });
   const eh = e.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", hour12: false });

@@ -10,24 +10,34 @@ import {
   reviewSubmission,
   SOCIAL_CHANGED,
   socialBreakdownFor,
+  totalSocialScoreFor,
   type Criterion,
   type SocialSubmission,
 } from "@/lib/social";
 import { getUser } from "@/lib/user";
 
+/* утилиты */
+const percent = (num: number, den: number) =>
+  den <= 0 ? 0 : Math.max(0, Math.min(100, Math.round((num / den) * 100)));
+
+/* роли модераторов */
 type ModeratorRole = "tutor" | "deputy" | "dean" | "admin";
 const toModeratorRole = (r: string): ModeratorRole =>
-  (["tutor", "deputy", "dean", "admin"] as const).includes(r as ModeratorRole)
+  (["tutor", "deputy", "dean", "admin"] as const).includes(
+    r as ModeratorRole
+  )
     ? (r as ModeratorRole)
     : "tutor";
 
 export default function SocialPage() {
   const [role, setRole] = useState<string>("student");
   const [userId, setUserId] = useState<string>("current");
+
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [subs, setSubs] = useState<SocialSubmission[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  /* монтирование и загрузка */
   useEffect(() => {
     setMounted(true);
     const u = getUser();
@@ -43,10 +53,8 @@ export default function SocialPage() {
     const onSocial: EventListener = () => reload();
     const onStorage = (_ev: StorageEvent) => reload();
 
-    // ВАЖНО: второй аргумент — функция-слушатель, без кастов к string
     window.addEventListener(SOCIAL_CHANGED, onSocial);
     window.addEventListener("storage", onStorage);
-
     return () => {
       window.removeEventListener(SOCIAL_CHANGED, onSocial);
       window.removeEventListener("storage", onStorage);
@@ -55,7 +63,7 @@ export default function SocialPage() {
 
   const my = useMemo(
     () => (mounted ? getStudentSubmissions(userId) : []),
-    [userId, mounted]
+    [mounted, userId, subs]
   );
 
   const isStudent = role === "student";
@@ -64,58 +72,116 @@ export default function SocialPage() {
   const isDean = role === "dean" || role === "admin";
   const isModerator = isTutor || isDeputy || isDean || role === "admin";
 
+  /* сводка */
+  const totalMax = useMemo(
+    () => criteria.reduce((s, c) => s + c.maxScore, 0),
+    [criteria]
+  );
+  const total = useMemo(
+    () => (mounted ? totalSocialScoreFor(userId) : 0),
+    [mounted, userId, subs, criteria]
+  );
+  const totalPct = mounted ? percent(total, totalMax) : 0;
+
   const [openFor, setOpenFor] = useState<Criterion | null>(null);
   const [preview, setPreview] = useState<SocialSubmission | null>(null);
 
+  /* визуал */
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Ijtimoiy faollik</h1>
+      {/* шапка с прогрессом */}
+      <div className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 p-5 text-white">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <div className="text-[13px] opacity-80">Ijtimoiy faollik indeksi</div>
+            <div className="text-2xl font-semibold">2024–2025 o‘quv yili</div>
+          </div>
+          <div className="text-right">
+            <div
+              className="text-3xl font-bold leading-none"
+              suppressHydrationWarning
+            >
+              {mounted ? total : 0}
+            </div>
+            <div className="text-[12px] opacity-80" suppressHydrationWarning>
+              / {mounted ? totalMax : 0} ball
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/20">
+          <div
+            className="h-2 rounded-full bg-white/90"
+            style={{ width: `${totalPct}%` }}
+          />
+        </div>
+        <div className="mt-1 text-[12px] opacity-90" suppressHydrationWarning>
+          Umumiy ko‘rsatkich: {mounted ? totalPct : 0}%
+        </div>
       </div>
 
+      {/* студенту — карточки отправки */}
       {isStudent && (
         <section className="rounded-2xl border bg-white p-4">
-          <div className="mb-3 text-sm font-semibold">
-            Kriteriyalar bo‘yicha hujjat topshirish
-          </div>
+          <div className="mb-3 text-sm font-semibold">Baholash mezonlari</div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {criteria.map((c) => {
+            {criteria.map((c, idx) => {
               const mine = my.find((s) => s.criterionId === c.id);
-              const badge =
-                mine?.status === "dean_approved"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : mine?.status?.startsWith("tutor") ||
-                    mine?.status?.startsWith("deputy")
-                  ? "bg-amber-100 text-amber-800"
-                  : mine?.status === "rejected"
-                  ? "bg-rose-100 text-rose-800"
-                  : "bg-neutral-100 text-neutral-700";
-              const label =
-                mine?.status === "dean_approved"
-                  ? "Tasdiqlandi (dekan)"
-                  : mine?.status === "deputy_approved"
-                  ? "Dekan o‘rinbosar tasdiqladi"
-                  : mine?.status === "tutor_approved"
-                  ? "Tyutor tasdiqladi"
-                  : mine?.status === "submitted"
-                  ? "Ko‘rib chiqilmoqda"
-                  : mine?.status === "rejected"
-                  ? "Rad etildi"
-                  : "Topshirilmagan";
+              const breakdown = socialBreakdownFor(userId);
+              const score = mounted
+                ? breakdown.find((b) => b.criterion.id === c.id)?.score || 0
+                : 0;
+              const p = mounted ? percent(score, c.maxScore) : 0;
+              const chip =
+                p >= 80
+                  ? { t: "Yaxshi", cls: "bg-emerald-100 text-emerald-800" }
+                  : p >= 50
+                  ? { t: "O‘rtacha", cls: "bg-amber-100 text-amber-800" }
+                  : { t: "Boshlang‘ich", cls: "bg-neutral-100 text-neutral-700" };
 
               return (
                 <div key={c.id} className="rounded-xl border p-3">
-                  <div className="mb-1 flex items-center justify-between">
-                    <div className="font-medium">{c.title}</div>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] ${badge}`}
-                    >
-                      {label}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">
+                        {idx + 1}. {c.title}
+                      </div>
+                      {c.subtitle && (
+                        <div className="truncate text-xs text-neutral-600">
+                          {c.subtitle}
+                        </div>
+                      )}
+                      {c.note && (
+                        <div className="mt-1 truncate text-xs text-neutral-600">
+                          {c.note}
+                        </div>
+                      )}
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] ${chip.cls}`}>
+                      {chip.t}
                     </span>
                   </div>
-                  <div className="text-xs text-neutral-600">
-                    Maksimal ball: {c.maxScore}
+
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                    <div
+                      className="h-2 rounded-full bg-indigo-500"
+                      style={{ width: `${p}%` }}
+                    />
                   </div>
+
+                  <div
+                    className="mt-1 flex items-center justify-between text-[12px] text-neutral-600"
+                    suppressHydrationWarning
+                  >
+                    <span>
+                      <b>{mounted ? score : 0}</b> / {mounted ? c.maxScore : 0} ball
+                    </span>
+                    {mine?.status && (
+                      <span className="rounded bg-neutral-100 px-2 py-0.5">
+                        {mine.status}
+                      </span>
+                    )}
+                  </div>
+
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       onClick={() => setOpenFor(c)}
@@ -139,6 +205,7 @@ export default function SocialPage() {
         </section>
       )}
 
+      {/* модерация */}
       {isModerator && (
         <section className="rounded-2xl border bg-white p-4">
           <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold">
@@ -153,6 +220,7 @@ export default function SocialPage() {
         </section>
       )}
 
+      {/* мои баллы — мини-сводка */}
       {isStudent && <StudentBreakdown studentId={userId} />}
 
       {openFor && (
@@ -194,11 +262,10 @@ function UploadModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 p-3">
       <form onSubmit={submit} className="w-full max-w-lg space-y-3 rounded-2xl border bg-white p-4">
-        <div className="text-lg font-semibold">Hujjat topshirish</div>
-        <div className="rounded-lg bg-neutral-50 p-3 text-sm">
-          <div className="font-medium">{criterion.title}</div>
-          <div className="text-neutral-600">Maksimal ball: {criterion.maxScore}</div>
-        </div>
+        <div className="text-lg font-semibold">{criterion.title}</div>
+        {criterion.subtitle && (
+          <div className="rounded-lg bg-neutral-50 p-3 text-sm">{criterion.subtitle}</div>
+        )}
         <textarea
           className="w-full rounded-xl border px-3 py-2"
           rows={3}
@@ -248,7 +315,9 @@ function PreviewModal({ sub, onClose }: { sub: SocialSubmission; onClose: () => 
             <details key={f.id} className="rounded-lg border">
               <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
                 <Eye className="h-4 w-4" /> {f.name}{" "}
-                <span className="text-xs text-neutral-500">({Math.round(f.size / 1024)} KB)</span>
+                <span className="text-xs text-neutral-500">
+                  ({Math.round(f.size / 1024)} KB)
+                </span>
               </summary>
               <div className="border-t p-3">
                 {f.type.startsWith("image/") ? (
@@ -328,7 +397,9 @@ function ReviewList({
                 className="w-24 rounded-xl border px-2 py-1 text-sm"
                 placeholder="Ball"
                 value={scoreMap[s.id] ?? (s.tutorScore ?? 0)}
-                onChange={(e) => setScoreMap((m) => ({ ...m, [s.id]: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setScoreMap((m) => ({ ...m, [s.id]: Number(e.target.value) }))
+                }
                 title="Ball"
               />
             )}
@@ -396,16 +467,17 @@ function StudentBreakdown({ studentId }: { studentId: string }) {
     <section className="rounded-2xl border bg-white p-4">
       <div className="mb-2 text-sm font-semibold">Mening ballarim</div>
       <div className="mb-3 rounded-xl bg-neutral-50 p-3 text-sm">
-        Jami: <b suppressHydrationWarning>{mounted ? total : "–"}</b>{" "}
-        / <span suppressHydrationWarning>{mounted ? max : "–"}</span>
+        Jami:{" "}
+        <b suppressHydrationWarning>{mounted ? total : "–"}</b> /{" "}
+        <span suppressHydrationWarning>{mounted ? max : "–"}</span>
       </div>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {items.map((it) => (
           <div key={it.criterion.id} className="rounded-xl border p-3">
             <div className="font-medium">{it.criterion.title}</div>
-            <div className="mt-1 text-sm">
-              Ball: <b suppressHydrationWarning>{mounted ? it.score : "–"}</b>{" "}
-              / <span suppressHydrationWarning>{mounted ? it.criterion.maxScore : "–"}</span>
+            <div className="mt-1 text-sm" suppressHydrationWarning>
+              Ball: <b>{mounted ? it.score : "–"}</b> /
+              <span> {mounted ? it.criterion.maxScore : "–"}</span>
             </div>
             <div className="text-xs text-neutral-600">
               Holat:{" "}

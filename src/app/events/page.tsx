@@ -1,25 +1,13 @@
+// src/app/events/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  getEvents,
-  addEvent,
-  updateEvent,
-  removeEvent,
-  requestRegistration,
-  unregisterFromEvent,
-  reviewRegistration,
-  acceptInvite,
-  isRegistered,
-  spotsLeft,
-  hasInvite,
-  myRegStatus,
-  type EventItem,
-  type EventKind,
-  type EventStatus,
-  type RegistrationForm,
-  type Registration
+  getEvents, addEvent, updateEvent, removeEvent,
+  requestRegistration, unregisterFromEvent, reviewRegistration, acceptInvite,
+  isRegistered, spotsLeft, hasInvite, myRegStatus,
+  type EventItem, type EventKind, type EventStatus, type RegistrationForm, type Registration
 } from "@/lib/events";
 import { getUser, type Role } from "@/lib/user";
 import { CalendarDays, MapPin, Users, Trash2, Check, Plus, X, Pause } from "lucide-react";
@@ -31,6 +19,7 @@ export default function EventsPage() {
   const [userId, setUserId] = useState("");
   const [events, setEvents] = useState<EventItem[]>([]);
   const isAdmin = role === "admin";
+
   useEffect(() => {
     const u = getUser();
     setRole(u.role);
@@ -44,8 +33,10 @@ export default function EventsPage() {
       window.removeEventListener("storage", on);
     };
   }, []);
+
   const [tab, setTab] = useState<MainTab>("list");
   const sorted = useMemo(() => events.slice().sort((a, b) => +new Date(a.start) - +new Date(b.start)), [events]);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [createPresetDate, setCreatePresetDate] = useState<string | null>(null);
   const [regOpenFor, setRegOpenFor] = useState<EventItem | null>(null);
@@ -62,8 +53,7 @@ export default function EventsPage() {
           </div>
           {isAdmin && (
             <button onClick={() => openCreate()} className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-              <Plus className="mr-1 inline h-4 w-4" />
-              Yangi tadbir
+              <Plus className="mr-1 inline h-4 w-4" /> Yangi tadbir
             </button>
           )}
         </div>
@@ -105,14 +95,8 @@ export default function EventsPage() {
           userId={userId}
           onClose={() => setRegOpenFor(null)}
           onSubmit={(payload) => {
-            try {
-              requestRegistration(payload);
-              alert("Ariza yuborildi. Admin tasdiqlashini kuting.");
-              setRegOpenFor(null);
-            } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : "Xatolik.";
-              alert(msg);
-            }
+            try { requestRegistration(payload); alert("Ariza yuborildi. Admin tasdiqlashini kuting."); setRegOpenFor(null); }
+            catch (e: any) { alert(e?.message || "Xatolik."); }
           }}
         />
       )}
@@ -143,7 +127,7 @@ function EventRow({
     Seminar: "bg-violet-100 text-violet-800",
     Imtihon: "bg-rose-100 text-rose-800"
   };
-  const eventChip = ev.status === "closed" ? "bg-neutral-300 text-white" : ev.status === "waitlist" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+  const eventChip = ev.status === "closed" ? "bg-neutral-300 text-white" : ev.status === "waitlist" ? "bg-neutral-200 text-neutral-700" : "bg-emerald-100 text-emerald-800";
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-4">
@@ -153,8 +137,9 @@ function EventRow({
             <h3 className="truncate text-lg font-semibold">{ev.title}</h3>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${chipColor[ev.kind]}`}>{ev.kind}</span>
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${eventChip}`}>
-              {ev.status === "closed" ? "Yopiq" : ev.status === "waitlist" ? "Kutish" : "Yig‘ilmoqda • идёт набор"}
+              {ev.status === "closed" ? "Yopiq" : ev.status === "waitlist" ? "Kutish" : "Jamoviy / Individual"}
             </span>
+            {registered && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Ro‘yxatdan otgan</span>}
           </div>
 
           <div className="mt-2 space-y-1 text-[13px] text-neutral-700">
@@ -170,7 +155,10 @@ function EventRow({
               {invited && <button onClick={onAcceptInvite} className="rounded-lg border-emerald-300 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">Siz jamoaga taklif qilindingiz — Qabul qilish</button>}
               {status === "pending" && <span className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-700">Ariza ko‘rib chiqilmoqda</span>}
               {status === "frozen" && <span className="rounded-lg bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700">Ariza muzlatilgan</span>}
-              {status === "rejected" && <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm text-rose-700">Arizangiz rad etildi • Вы отклонены</span>}
+              {status === "rejected" && <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm text-rose-700">Arizangiz rad etildi</span>}
+              {!registered && ev.status === "open" && left === 0 && (
+                <span className="rounded-lg bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700">Joylar tugagan</span>
+              )}
             </div>
           )}
         </div>
@@ -180,7 +168,7 @@ function EventRow({
             <>
               <div className="flex gap-2">
                 <button onClick={() => onEdit({ status: "open" })} className={`rounded-lg px-3 py-1.5 text-sm ${ev.status === "open" ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border hover:bg-neutral-50"}`} title="Open"><Check className="mr-1 inline h-4 w-4" />Open</button>
-                <button onClick={() => onEdit({ status: "waitlist" })} className={`rounded-lg px-3 py-1.5 text-sm ${ev.status === "waitlist" ? "border-amber-300 bg-amber-50 text-amber-700" : "border hover:bg-neutral-50"}`} title="Kutish"><Pause className="mr-1 inline h-4 w-4" />Kutish</button>
+                <button onClick={() => onEdit({ status: "waitlist" })} className={`rounded-lg px-3 py-1.5 text-sm ${ev.status === "waitlist" ? "border-neutral-300 bg-neutral-100 text-neutral-700" : "border hover:bg-neutral-50"}`} title="Kutish"><Pause className="mr-1 inline h-4 w-4" />Kutish</button>
                 <button onClick={() => onEdit({ status: "closed" })} className={`rounded-lg px-3 py-1.5 text-sm ${ev.status === "closed" ? "border-neutral-300 bg-neutral-100 text-neutral-700" : "border hover:bg-neutral-50"}`} title="Yopiq"><X className="mr-1 inline h-4 w-4" />Yopiq</button>
               </div>
 
@@ -191,16 +179,14 @@ function EventRow({
                     {ev.registrations.filter((r) => r.status === "pending" || r.status === "frozen").map((r) => (
                       <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
                         <div className="min-w-0">
-                          <div className="font-medium truncate">
-                            {r.form.fullName} {r.mode === "team" && <span className="ml-2 rounded bg-neutral-100 px-2 py-0.5 text-[11px]">Team</span>}
-                          </div>
+                          <div className="truncate font-medium">{r.form.fullName} {r.mode === "team" && <span className="ml-2 rounded bg-neutral-100 px-2 py-0.5 text-[11px]">Team</span>}</div>
                           <div className="text-neutral-600">{r.form.phone} • {r.form.email}</div>
                           {r.form.group && <div className="text-neutral-600">Guruh: {r.form.group}</div>}
                           {r.form.note && <div className="text-neutral-600">Izoh: {r.form.note}</div>}
                         </div>
                         <div className="flex shrink-0 gap-2">
                           <button onClick={() => onReview(r, "approve")} className="rounded-lg border-emerald-300 bg-emerald-50 px-3 py-1.5 text-emerald-700">Qabul</button>
-                          <button onClick={() => onReview(r, "freeze")} className="rounded-lg border-amber-300 bg-amber-50 px-3 py-1.5 text-amber-700">Muzlatish</button>
+                          <button onClick={() => onReview(r, "freeze")} className="rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1.5 text-neutral-700">Muzlatish</button>
                           <button onClick={() => onReview(r, "reject")} className="rounded-lg border-rose-300 bg-rose-50 px-3 py-1.5 text-rose-700">Rad etish</button>
                         </div>
                       </div>
@@ -262,7 +248,7 @@ function CalendarView({ events, isAdmin, onDayClick }: { events: EventItem[]; is
       </div>
 
       <div className="grid grid-cols-7 gap-px rounded-xl border bg-neutral-200">
-        {["Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"].map((w) => (
+        {["Yak","Dush","Sesh","Chor","Pay","Jum","Shan"].map((w) => (
           <div key={w} className="bg-white px-2 py-1 text-center text-xs font-medium text-neutral-500">{w}</div>
         ))}
         {grid.map((d, i) => {
@@ -270,11 +256,11 @@ function CalendarView({ events, isAdmin, onDayClick }: { events: EventItem[]; is
           const key = d.toISOString().slice(0, 10);
           const dayEvents = (eventsByDay.get(key) || []).sort((a, b) => +new Date(a.start) - +new Date(b.start));
           return (
-            <div key={i} className={`min-h-[104px] bg-white p-2 ${inMonth ? "" : "bg-neutral-50 text-neutral-400"}`} onClick={() => { if (!isAdmin) return; onDayClick(isoFor(d)); }}>
+            <div key={i} className={`min-h-[104px] cursor-${isAdmin ? "pointer" : "default"} bg-white p-2 ${inMonth ? "" : "bg-neutral-50 text-neutral-400"}`} onClick={() => { if (!isAdmin) return; onDayClick(isoFor(d)); }}>
               <div className="mb-1 text-right text-xs">{d.getDate()}</div>
               <div className="space-y-1">
                 {dayEvents.map((ev) => (
-                  <Link key={ev.id} href={`/events/${ev.slug}`} className={`block truncate rounded px-2 py-0.5 text-[11px] ${ev.status === "closed" ? "bg-neutral-200 text-neutral-700" : ev.status === "waitlist" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`} title={ev.title} onClick={(e) => e.stopPropagation()}>
+                  <Link key={ev.id} href={`/events/${ev.slug}`} className={`block truncate rounded px-2 py-0.5 text-[11px] ${ev.status === "closed" ? "bg-neutral-200 text-neutral-700" : ev.status === "waitlist" ? "bg-neutral-100 text-neutral-700" : "bg-emerald-100 text-emerald-800"}`} title={ev.title} onClick={(e) => e.stopPropagation()}>
                     {ev.title}
                   </Link>
                 ))}
@@ -315,8 +301,7 @@ function CreateEventModal({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const start = `${date}T${time}`;
-    const end = new Date(start);
-    end.setMinutes(end.getMinutes() + durationMin);
+    const end = new Date(start); end.setMinutes(end.getMinutes() + durationMin);
     onSave({ title, kind, start, end: end.toISOString(), location, capacity, status, description, details: {} });
   }
 
@@ -332,7 +317,7 @@ function CreateEventModal({
         <div className="grid grid-cols-2 gap-2">
           <select className="rounded-xl border px-3 py-2" value={kind} onChange={(e) => setKind(e.target.value as EventKind)}>
             <option value="Seminar">Seminar</option>
-            <option value="Takvim">Takvim</option>
+            <option value="Takvim">Tanlov</option>
             <option value="Imtihon">Imtihon</option>
           </select>
           <input type="number" min={15} step={15} className="rounded-xl border px-3 py-2" value={durationMin} onChange={(e) => setDurationMin(+e.target.value)} placeholder="Davomiyligi, min" />
@@ -368,17 +353,24 @@ function RegisterModal({
   const [form, setForm] = useState<RegistrationForm>({ fullName: getUser().name || "", phone: "", email: "", faculty: "", course: "", group: "", note: "" });
   const [teamName, setTeamName] = useState("Jamoa");
   const [invites, setInvites] = useState("");
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    onSubmit({ eventId: event.id, userId, mode, form, teamName: mode === "team" ? teamName : undefined, inviteUserIds: mode === "team" ? invites.split(",").map((s) => s.trim()).filter(Boolean) : undefined });
+    onSubmit({
+      eventId: event.id, userId, mode, form,
+      teamName: mode === "team" ? teamName : undefined,
+      inviteUserIds: mode === "team" ? invites.split(",").map((s) => s.trim()).filter(Boolean) : undefined
+    });
   }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 p-4">
       <form onSubmit={submit} className="w-full max-w-lg space-y-3 rounded-2xl border bg-white p-4">
         <div className="text-lg font-semibold">Tadbirga ro‘yxatdan o‘tish</div>
         <div className="rounded-lg bg-neutral-50 p-3 text-[13px]">
-          <div><b>{event.title}</b></div>
+          <div className="font-medium">{event.title}</div>
           <div className="mt-1 text-neutral-700">{fmt(event.start)} • {event.location}</div>
+          <div className="mt-1 text-neutral-700">{event.description}</div>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => setMode("individual")} className={`rounded-xl border px-3 py-1.5 text-sm ${mode === "individual" ? "bg-neutral-100" : ""}`}>Individual</button>
@@ -398,7 +390,7 @@ function RegisterModal({
             <div className="mb-2 text-sm font-medium">Jamoa</div>
             <input className="mb-2 w-full rounded-xl border px-3 py-2" placeholder="Jamoa nomi" value={teamName} onChange={(e) => setTeamName(e.target.value)} />
             <input className="w-full rounded-xl border px-3 py-2" placeholder="Taklif qilinadigan a'zolar (userId), vergul orqali" value={invites} onChange={(e) => setInvites(e.target.value)} />
-            <p className="mt-1 text-xs text-neutral-500">Eslatma: Taklif qilingan ishtirokchi bu tadbir doirasida boshqa jamoaga qo‘shila olmaydi.</p>
+            <p className="mt-1 text-xs text-neutral-500">Taklif qilingan ishtirokchi boshqa jamoaga qo‘shila olmaydi.</p>
           </div>
         )}
         <div className="flex justify-end gap-2 pt-1">

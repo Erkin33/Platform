@@ -1,28 +1,22 @@
+// src/app/tests/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, Clock, FileText, Plus, Save, Trash2, Pencil, Database, Upload, Shuffle } from "lucide-react";
+import {
+  ClipboardList, Clock, FileText, Plus, Save, Trash2, Pencil,
+  Database, Upload, Shuffle
+} from "lucide-react";
 import { getUser, type Role } from "@/lib/user";
 import {
-  getTests,
-  addTest,
-  updateTest,
-  removeTest,
-  TESTS_CHANGED,
-  lastAttemptFor,
-  getBanks,
-  addBank,
-  updateBank,
-  removeBank,
-  BANKS_CHANGED,
-  parseCSVQuestions,
-  sampleRandom,
-  type TestItem,
-  type Question,
-  type QuestionBank
+  getTests, addTest, updateTest, removeTest,
+  TESTS_CHANGED, lastAttemptFor,
+  getBanks, addBank, updateBank, removeBank, BANKS_CHANGED,
+  parseCSVQuestions, sampleRandom,
+  type TestItem, type Question, type QuestionBank, type QuestionOrder
 } from "@/lib/tests";
 
+/* ===== Types for UI ===== */
 type NewBankQuestion = { text: string; a: string; b: string; c: string; d: string; correct: number };
 type BuildMode = "single" | "mixed";
 
@@ -36,30 +30,30 @@ export default function TestsPage() {
   const [editingBank, setEditingBank] = useState<QuestionBank | null>(null);
 
   useEffect(() => {
-  const u = getUser();
-  setRole(u.role);
-  setUserId(u.name || "current");
+    const u = getUser();
+    setRole(u.role);
+    setUserId(u.name || "current");
 
-  const reload = () => setTests(getTests());
-  const reloadBanks = () => setBanks(getBanks());
+    const reload = () => setTests(getTests());
+    const reloadBanks = () => setBanks(getBanks());
 
-  reload();
-  reloadBanks();
+    reload();
+    reloadBanks();
 
-  const onTests: EventListener = () => reload();
-  const onBanks: EventListener = () => reloadBanks();
-  const onStorage = (_ev: StorageEvent) => { reload(); reloadBanks(); };
+    const onTests: EventListener = () => reload();
+    const onBanks: EventListener = () => reloadBanks();
+    const onStorage = () => { reload(); reloadBanks(); };
 
-  window.addEventListener(TESTS_CHANGED, onTests);
-  window.addEventListener(BANKS_CHANGED, onBanks);
-  window.addEventListener("storage", onStorage);
+    window.addEventListener(TESTS_CHANGED, onTests);
+    window.addEventListener(BANKS_CHANGED, onBanks);
+    window.addEventListener("storage", onStorage);
 
-  return () => {
-    window.removeEventListener(TESTS_CHANGED, onTests);
-    window.removeEventListener(BANKS_CHANGED, onBanks);
-    window.removeEventListener("storage", onStorage);
-  };
-}, []);
+    return () => {
+      window.removeEventListener(TESTS_CHANGED, onTests);
+      window.removeEventListener(BANKS_CHANGED, onBanks);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const visibleTests = useMemo(
     () => role === "admin" ? tests : tests.filter(t => t.status === "active"),
@@ -82,7 +76,9 @@ export default function TestsPage() {
         )}
       </div>
 
-      <BanksPanel banks={banks} role={role} onEdit={(b)=>{setEditingBank(b); setOpenBank(true);}} onDelete={(id)=>removeBank(id)} />
+      <BanksPanel banks={banks} role={role}
+        onEdit={(b)=>{setEditingBank(b); setOpenBank(true);}}
+        onDelete={(id)=>removeBank(id)} />
 
       <div className="mt-6 space-y-4">
         {visibleTests.map((t) => {
@@ -96,6 +92,8 @@ export default function TestsPage() {
                   <div className="mt-3 flex flex-wrap items-center gap-6 text-[12px] text-neutral-600">
                     <span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" /> {t.questions.length} savol</span>
                     <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4" /> {t.durationMin} daqiqa</span>
+                    <span className="inline-flex items-center gap-2">Ball/savol: {t.pointsPerQuestion}</span>
+                    {t.attemptsLimit > 0 && <span className="inline-flex items-center gap-2">Urinishlar: {t.attemptsLimit}</span>}
                     {last && <span className="inline-flex items-center gap-2 text-emerald-600"><ClipboardList className="h-4 w-4" /> Natija: {last.scorePercent}/100</span>}
                   </div>
                 </div>
@@ -168,15 +166,18 @@ function BanksPanel({ banks, role, onEdit, onDelete }: { banks: QuestionBank[]; 
   );
 }
 
+/* ===== Bank modal (ручной ввод + CSV). Отметка правильного варианта по каждой строке. ===== */
 function BankModal({ initial, onClose, onSave }: { initial?: QuestionBank; onClose:()=>void; onSave:(data: Omit<QuestionBank,"id"|"createdAt">, id?: string)=>void }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [list, setList] = useState<Question[]>(initial?.questions ?? []);
   const [q, setQ] = useState<NewBankQuestion>({ text: "", a: "", b: "", c: "", d: "", correct: 0 });
+
   function addOne() {
     const choices = [q.a, q.b, q.c, q.d].map(s=>s.trim()).filter(Boolean);
     if (!q.text.trim() || choices.length < 2) return;
-    setList(s=>[...s, { id: Math.random().toString(36).slice(2,10), text: q.text.trim(), choices, correctIndex: Math.max(0, Math.min(choices.length-1, Number(q.correct))) }]);
+    const safeIndex = Math.max(0, Math.min(choices.length-1, Number(q.correct)));
+    setList(s=>[...s, { id: Math.random().toString(36).slice(2,10), text: q.text.trim(), choices, correctIndex: safeIndex }]);
     setQ({ text: "", a: "", b: "", c: "", d: "", correct: 0 });
   }
   async function importCSV(file: File) {
@@ -190,6 +191,7 @@ function BankModal({ initial, onClose, onSave }: { initial?: QuestionBank; onClo
     if (!title.trim() || !subject.trim() || list.length === 0) return;
     onSave({ title: title.trim(), subject: subject.trim(), questions: list }, initial?.id);
   }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/20 p-3">
       <form onSubmit={submit} className="w-full max-w-3xl space-y-3 rounded-2xl border bg-white p-4">
@@ -198,6 +200,7 @@ function BankModal({ initial, onClose, onSave }: { initial?: QuestionBank; onClo
           <input className="rounded-xl border px-3 py-2" placeholder="Baza nomi" value={title} onChange={e=>setTitle(e.target.value)} required />
           <input className="rounded-xl border px-3 py-2" placeholder="Fan" value={subject} onChange={e=>setSubject(e.target.value)} required />
         </div>
+
         <div className="rounded-xl border p-3">
           <div className="mb-2 text-sm font-medium">CSVdan import</div>
           <div className="flex items-center gap-2">
@@ -209,32 +212,35 @@ function BankModal({ initial, onClose, onSave }: { initial?: QuestionBank; onClo
             <div className="text-xs text-neutral-500">Format: Savol;Variant1;Variant2;...;to‘g‘ri_index</div>
           </div>
         </div>
+
         <div className="rounded-xl border p-3">
           <div className="mb-2 text-sm font-medium">Qo‘lda savol qo‘shish</div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input className="sm:col-span-2 rounded-xl border px-3 py-2" placeholder="Savol matni" value={q.text} onChange={e=>setQ(s=>({...s, text:e.target.value}))} />
-            <input className="rounded-xl border px-3 py-2" placeholder="Variant 1" value={q.a} onChange={e=>setQ(s=>({...s, a:e.target.value}))} />
-            <input className="rounded-xl border px-3 py-2" placeholder="Variant 2" value={q.b} onChange={e=>setQ(s=>({...s, b:e.target.value}))} />
-            <input className="rounded-xl border px-3 py-2" placeholder="Variant 3" value={q.c} onChange={e=>setQ(s=>({...s, c:e.target.value}))} />
-            <input className="rounded-xl border px-3 py-2" placeholder="Variant 4" value={q.d} onChange={e=>setQ(s=>({...s, d:e.target.value}))} />
-            <input type="number" min={0} className="rounded-xl border px-3 py-2" placeholder="To‘g‘ri index (0..)" value={q.correct} onChange={e=>setQ(s=>({...s, correct:Number(e.target.value)}))} />
-            <div className="sm:col-span-2">
+          <div className="grid gap-2">
+            <input className="rounded-xl border px-3 py-2" placeholder="Savol matni" value={q.text} onChange={e=>setQ(s=>({...s, text:e.target.value}))} />
+            <VariantInput label="1-variant" value={q.a} checked={q.correct===0} onChangeValue={v=>setQ(s=>({...s, a:v}))} onCheck={()=>setQ(s=>({...s, correct:0}))}/>
+            <VariantInput label="2-variant" value={q.b} checked={q.correct===1} onChangeValue={v=>setQ(s=>({...s, b:v}))} onCheck={()=>setQ(s=>({...s, correct:1}))}/>
+            <VariantInput label="3-variant" value={q.c} checked={q.correct===2} onChangeValue={v=>setQ(s=>({...s, c:v}))} onCheck={()=>setQ(s=>({...s, correct:2}))}/>
+            <VariantInput label="4-variant" value={q.d} checked={q.correct===3} onChangeValue={v=>setQ(s=>({...s, d:v}))} onCheck={()=>setQ(s=>({...s, correct:3}))}/>
+            <div>
               <button type="button" onClick={addOne} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50">Savolni qo‘shish</button>
             </div>
           </div>
         </div>
+
         <div className="rounded-xl border p-3">
           <div className="mb-2 text-sm font-medium">Bazada {list.length} savol</div>
           <div className="max-h-60 overflow-auto rounded-lg border">
             {list.map((x, i)=>(
               <div key={x.id} className="flex items-center justify-between gap-2 border-b px-3 py-2 text-sm">
                 <div className="truncate">{i+1}. {x.text}</div>
+                <span className="text-xs text-emerald-600">to‘g‘ri: {x.correctIndex+1}</span>
                 <button type="button" className="rounded-md border px-2 py-1 text-xs hover:bg-neutral-50" onClick={()=>setList(s=>s.filter(q=>q.id!==x.id))}>O‘chirish</button>
               </div>
             ))}
             {list.length===0 && <div className="p-3 text-sm text-neutral-500">Savollar yo‘q</div>}
           </div>
         </div>
+
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2">Bekor qilish</button>
           <button className="inline-flex items-center gap-2 rounded-xl border px-4 py-2"><Save className="h-4 w-4" /> Saqlash</button>
@@ -244,7 +250,25 @@ function BankModal({ initial, onClose, onSave }: { initial?: QuestionBank; onClo
   );
 }
 
-function CreateTestModal({ banks, onClose, onCreate }: { banks: QuestionBank[]; onClose:()=>void; onCreate:(payload: Omit<TestItem,"id"|"slug"|"createdAt">)=>void }) {
+function VariantInput({
+  label, value, checked, onChangeValue, onCheck
+}: { label:string; value:string; checked:boolean; onChangeValue:(v:string)=>void; onCheck:()=>void }) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] gap-2">
+      <input className="rounded-xl border px-3 py-2" placeholder={label} value={value} onChange={e=>onChangeValue(e.target.value)} />
+      <button type="button" onClick={onCheck} className={`rounded-lg border px-3 py-2 text-sm ${checked?'bg-emerald-100 border-emerald-300':'hover:bg-neutral-50'}`}>✓</button>
+    </div>
+  );
+}
+
+/* ===== Create Test modal ===== */
+function CreateTestModal({
+  banks, onClose, onCreate
+}: {
+  banks: QuestionBank[];
+  onClose:()=>void;
+  onCreate:(payload: Omit<TestItem,"id"|"slug"|"createdAt">)=>void;
+}) {
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [duration, setDuration] = useState(60);
@@ -254,28 +278,47 @@ function CreateTestModal({ banks, onClose, onCreate }: { banks: QuestionBank[]; 
   const [count, setCount] = useState(20);
   const [mixed, setMixed] = useState<Record<string, number>>({});
   const [shuffle, setShuffle] = useState(true);
+  const [attemptsLimit, setAttemptsLimit] = useState(3);
+  const [pointsPerQuestion, setPointsPerQuestion] = useState(5);
+  const [order, setOrder] = useState<QuestionOrder>("random");
 
   function buildQuestions(): Question[] {
-    if (mode === "single") {
-      const b = banks.find(x=>x.id===bankId);
-      if (!b) return [];
-      const qs = sampleRandom(b.questions, count);
-      return shuffle ? sampleRandom(qs, qs.length) : qs;
-    } else {
-      const res: Question[] = [];
-      for (const b of banks) {
-        const need = Number(mixed[b.id] || 0);
-        if (need > 0) res.push(...sampleRandom(b.questions, need));
+    const collect = (): Question[] => {
+      if (mode === "single") {
+        const b = banks.find(x=>x.id===bankId);
+        if (!b) return [];
+        const source = b.questions.slice();
+        if (order === "random") return sampleRandom(source, count);
+        return source.slice(0, Math.max(0, Math.min(count, source.length)));
+      } else {
+        const res: Question[] = [];
+        for (const b of banks) {
+          const need = Number(mixed[b.id] || 0);
+          if (need > 0) {
+            res.push(...(order==="random" ? sampleRandom(b.questions, need) : b.questions.slice(0, Math.min(need, b.questions.length))));
+          }
+        }
+        return res;
       }
-      return shuffle ? sampleRandom(res, res.length) : res;
-    }
+    };
+    const qs = collect();
+    return shuffle && order === "random" ? sampleRandom(qs, qs.length) : qs;
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const qs = buildQuestions();
     if (qs.length === 0) return alert("Savollar tanlanmadi.");
-    onCreate({ title: title || "Yangi test", subject: subject || "Fan", durationMin: Number(duration)||60, status, questions: qs });
+    onCreate({
+      title: title || "Yangi test",
+      subject: subject || "Fan",
+      durationMin: Number(duration)||60,
+      status,
+      attemptsLimit: Math.max(0, Number(attemptsLimit)||0),
+      pointsPerQuestion: Math.max(1, Number(pointsPerQuestion)||1),
+      order,
+      questions: qs
+    });
   }
 
   return (
@@ -291,14 +334,25 @@ function CreateTestModal({ banks, onClose, onCreate }: { banks: QuestionBank[]; 
             <option value="draft">Draft</option>
           </select>
         </div>
-        <div className="rounded-xl border p-3">
-          <div className="mb-2 flex items-center justify-between">
+
+        <div className="rounded-xl border p-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">Savollar tanlash</div>
-            <label className="flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={shuffle} onChange={e=>setShuffle(e.target.checked)} />
-              <Shuffle className="h-3 w-3" /> Tasodifiy aralashtirish
-            </label>
+            <div className="flex items-center gap-3 text-xs">
+              <label className="flex items-center gap-2">
+                <span>Savollar tartibi</span>
+                <select className="rounded-lg border px-2 py-1" value={order} onChange={e=>setOrder(e.target.value as QuestionOrder)}>
+                  <option value="random">Tasodifiy aralash</option>
+                  <option value="sequential">Ketma-ket</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={shuffle} onChange={e=>setShuffle(e.target.checked)} />
+                <Shuffle className="h-3 w-3" /> Umumiy aralashtirish
+              </label>
+            </div>
           </div>
+
           <div className="mb-2 flex gap-2">
             <button type="button" onClick={()=>setMode("single")} className={`rounded-lg border px-3 py-1.5 text-sm ${mode==="single"?"bg-neutral-100":""}`}>Bitta baza</button>
             <button type="button" onClick={()=>setMode("mixed")} className={`rounded-lg border px-3 py-1.5 text-sm ${mode==="mixed"?"bg-neutral-100":""}`}>Bir nechta baza</button>
@@ -323,6 +377,13 @@ function CreateTestModal({ banks, onClose, onCreate }: { banks: QuestionBank[]; 
             </div>
           )}
         </div>
+
+        <div className="rounded-xl border p-3 grid gap-2 sm:grid-cols-3">
+          <input type="number" min={0} className="rounded-xl border px-3 py-2" placeholder="Urinishlar (0 = cheksiz)" value={attemptsLimit} onChange={e=>setAttemptsLimit(Number(e.target.value))} />
+          <input type="number" min={1} className="rounded-xl border px-3 py-2" placeholder="Ball/savol" value={pointsPerQuestion} onChange={e=>setPointsPerQuestion(Number(e.target.value))} />
+          <div className="flex items-center text-xs text-neutral-500 px-1">Loyihaga mos: skrinlarda «Urinishlar» va «Ball/savol»</div>
+        </div>
+
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2">Bekor qilish</button>
           <button className="inline-flex items-center gap-2 rounded-xl border px-4 py-2"><Save className="h-4 w-4" /> Test yaratish</button>

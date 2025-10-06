@@ -1,10 +1,18 @@
+// src/app/tests/[slug]/page.tsx
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { getUser } from "@/lib/user";
-import { getTestBySlug, addAttempt, lastAttemptFor, removeAttemptsFor, type TestItem } from "@/lib/tests";
+import {
+  getTestBySlug,
+  addAttempt,
+  lastAttemptFor,
+  removeAttemptsFor,
+  attemptsCountFor,
+  type TestItem
+} from "@/lib/tests";
 
 export default function TestRunner(props: { params: Promise<{ slug: string }> }) {
   const { slug } = use(props.params);
@@ -20,23 +28,45 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
   }, [slug]);
 
   const last = useMemo(() => (test ? lastAttemptFor(userId, test.id) : undefined), [test, userId]);
+  const made = useMemo(() => (test ? attemptsCountFor(userId, test.id) : 0), [test, userId]);
+  const limitReached = !!test && test.attemptsLimit > 0 && made >= test.attemptsLimit;
 
   if (!test) return <div className="text-neutral-600">Test topilmadi.</div>;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!test || test.status !== "active") return;
+    if (limitReached) return;
+
     const total = test.questions.length;
     if (total === 0) return alert("Bu testda savollar yo‘q.");
     let correct = 0;
     test.questions.forEach((q) => { if (answers[q.id] === q.correctIndex) correct++; });
+
     const scorePercent = Math.round((correct / total) * 100);
-    addAttempt({ testId: test.id, userId, correct, total, scorePercent, answers });
+    const scorePoints = correct * (test.pointsPerQuestion || 1);
+
+    addAttempt({ testId: test.id, userId, correct, total, scorePercent, scorePoints, answers });
     setSubmitted(true);
   }
 
   const showResult = submitted || !!last;
   const result = showResult ? lastAttemptFor(userId, test.id) : undefined;
+
+  if (limitReached && !showResult) {
+    return (
+      <div className="max-w-3xl">
+        <h1 className="text-2xl font-semibold">{test.title}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{test.subject}</p>
+        <div className="mt-6 rounded-2xl border bg-white p-5">
+          <div className="text-[15px]">
+            Ushbu test uchun urinishlar limiti tugagan: <b>{test.attemptsLimit}</b>
+          </div>
+        </div>
+        <Link href="/tests" className="mt-6 inline-block rounded-xl border px-4 py-2 hover:bg-neutral-50">Testlarga qaytish</Link>
+      </div>
+    );
+  }
 
   if (showResult && result) {
     return (
@@ -65,6 +95,7 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
 
           <div className="mt-3 text-[15px]">
             To‘g‘ri javoblar: <b>{result.correct}</b> / {result.total} — <b>{result.scorePercent}</b>/100
+            <div className="mt-1">Umumiy ball: <b>{result.scorePoints}</b> (ball/savol: {test.pointsPerQuestion})</div>
           </div>
         </div>
 
@@ -89,17 +120,12 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
                     const bg =
                       correct ? "bg-emerald-100/70" : chosen && !correct ? "bg-rose-100/70" : "bg-white";
                     return (
-                      <div
-                        key={i}
-                        className={`rounded-lg border px-3 py-2 text-sm ${bg} ${ring}`}
-                      >
+                      <div key={i} className={`rounded-lg border px-3 py-2 text-sm ${bg} ${ring}`}>
                         <div className="flex items-center gap-2">
                           <input type="radio" disabled checked={chosen} className="h-4 w-4" readOnly />
                           <span>{choice}</span>
                           {correct && <span className="ml-2 rounded bg-emerald-200 px-2 py-0.5 text-[11px]">To‘g‘ri</span>}
-                          {chosen && !correct && (
-                            <span className="ml-2 rounded bg-rose-200 px-2 py-0.5 text-[11px]">Noto‘g‘ri</span>
-                          )}
+                          {chosen && !correct && <span className="ml-2 rounded bg-rose-200 px-2 py-0.5 text-[11px]">Noto‘g‘ri</span>}
                         </div>
                       </div>
                     );
@@ -123,6 +149,11 @@ export default function TestRunner(props: { params: Promise<{ slug: string }> })
       <p className="mt-1 text-sm text-neutral-500">
         {test.subject} • {test.durationMin} daqiqa • {test.questions.length} savol
       </p>
+      {test.attemptsLimit > 0 && (
+        <p className="text-xs text-neutral-500 mt-1">
+          Urinishlar: {attemptsCountFor(userId, test.id)} / {test.attemptsLimit}
+        </p>
+      )}
 
       <form onSubmit={submit} className="mt-5 space-y-5">
         {test.questions.map((q, idx) => (
