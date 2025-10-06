@@ -41,15 +41,14 @@ export default function ProgressPage() {
     };
     reload();
 
-    const onStorage = (_ev: StorageEvent) => reload();
-    const onTests: EventListener = () => reload();
-    const onSocial: EventListener = () => reload();
+    const onTests = () => reload();
+    const onSocial = () => reload();
 
-    window.addEventListener("storage", onStorage);
+    window.addEventListener("storage", reload);
     window.addEventListener("uniplatform_tests_changed", onTests);
     window.addEventListener("uniplatform_social_changed", onSocial);
     return () => {
-      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("storage", reload);
       window.removeEventListener("uniplatform_tests_changed", onTests);
       window.removeEventListener("uniplatform_social_changed", onSocial);
     };

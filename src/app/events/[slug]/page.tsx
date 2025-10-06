@@ -1,11 +1,10 @@
-// src/app/events/[slug]/page.tsx
 "use client";
 
 import { use, useEffect, useState } from "react";
 import {
   getEventBySlug, updateEventBySlug,
   requestRegistration, unregisterFromEvent, acceptInvite,
-  reviewRegistration, myRegStatus, hasInvite, isRegistered, spotsLeft,
+  myRegStatus, hasInvite, isRegistered, spotsLeft, // ← убрал reviewRegistration (не использовался)
   type EventItem, type EventDetails, type RegistrationForm
 } from "@/lib/events";
 import { getUser, type Role } from "@/lib/user";
@@ -90,7 +89,7 @@ export default function EventDetailsPage(props: { params: Promise<{ slug: string
         <form onSubmit={saveDetails} className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-5">
           <div><label className="mb-1 block text-sm font-medium">About</label><textarea className="w-full rounded-xl border px-3 py-2" rows={4} value={form.about ?? ""} onChange={(e) => setForm((s) => ({ ...s, about: e.target.value }))} placeholder="Kengaytirilgan tavsif..." /></div>
           <div><label className="mb-1 block text-sm font-medium">Agenda</label><textarea className="w-full rounded-xl border px-3 py-2" rows={3} value={form.agenda ?? ""} onChange={(e) => setForm((s) => ({ ...s, agenda: e.target.value }))} placeholder="Kundalik tartib va vaqtlar..." /></div>
-          <div><label className="mb-1 block text-sm font-medium">Speakers</label><textarea className="w-full rounded-xl border px-3 py-2" rows={2} value={form.speakers ?? ""} onChange={(e) => setForm((s) => ({ ...s, speakers: e.target.value }))} placeholder="Ismlar, lavozimlar..." /></div>
+          <div><label className="mb-1 block text-sm font-medium">Speakers</label><textarea className="w-full rounded-xl border px-3 py-2" rows={2} value={form.speakers ?? ""} onChange={(e) => setForm((s) => ({ ...s, speakers: e.target.value }))} placeholder="Ismlar, lavozимlar..." /></div>
           <div><label className="mb-1 block text-sm font-medium">Materials (link yoki matn)</label><input className="w-full rounded-xl border px-3 py-2" value={form.materials ?? ""} onChange={(e) => setForm((s) => ({ ...s, materials: e.target.value }))} placeholder="https://..." /></div>
           <div className="flex justify-end gap-2"><button type="button" className="rounded-xl border px-4 py-2" onClick={() => setEdit(false)}>Bekor qilish</button><button className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"><Save className="h-4 w-4" /> Saqlash</button></div>
         </form>

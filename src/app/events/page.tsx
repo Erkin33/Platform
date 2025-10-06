@@ -1,4 +1,3 @@
-// src/app/events/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +34,10 @@ export default function EventsPage() {
   }, []);
 
   const [tab, setTab] = useState<MainTab>("list");
-  const sorted = useMemo(() => events.slice().sort((a, b) => +new Date(a.start) - +new Date(b.start)), [events]);
+  const sorted = useMemo(
+    () => events.slice().sort((a, b) => +new Date(a.start) - +new Date(b.start)),
+    [events]
+  );
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createPresetDate, setCreatePresetDate] = useState<string | null>(null);
@@ -95,8 +97,14 @@ export default function EventsPage() {
           userId={userId}
           onClose={() => setRegOpenFor(null)}
           onSubmit={(payload) => {
-            try { requestRegistration(payload); alert("Ariza yuborildi. Admin tasdiqlashini kuting."); setRegOpenFor(null); }
-            catch (e: any) { alert(e?.message || "Xatolik."); }
+            try {
+              requestRegistration(payload);
+              alert("Ariza yuborildi. Admin tasdiqlashini kuting.");
+              setRegOpenFor(null);
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : "Xatolik.";
+              alert(msg);
+            }
           }}
         />
       )}

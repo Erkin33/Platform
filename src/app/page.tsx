@@ -120,7 +120,7 @@ export default function RootLiveDashboard() {
       }
     });
 
-    // Подсчёт корректных ответов
+    // Подсчёт корректных ответов и очков
     let correct = 0;
     t.questions.forEach((q) => {
       if (answers[q.id] === q.correctIndex) correct++;
@@ -131,14 +131,18 @@ export default function RootLiveDashboard() {
       alert("Bu testda savollar yo‘q.");
       return;
     }
-    const scorePercent = Math.round((correct / total) * 100);
 
-    // ВАЖНО: теперь добавляем answers — это требуется типом Attempt
+    // если каждый вопрос = 1 балл, то scorePoints = correct
+    const scorePoints = correct;
+    const scorePercent = Math.round((scorePoints / total) * 100);
+
+    // ВАЖНО: добавили поле scorePoints (обязательное в типе Attempt)
     addAttempt({
       testId: t.id,
       userId: id,
       correct,
       total,
+      scorePoints,
       scorePercent,
       answers,
     });
